@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雪场比较器 · Snowy Mountains</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0d141f;
+    --bg-alt: #101a28;
+    --surface: #16212f;
+    --surface-hi: #1c2b3d;
+    --line: #263548;
+    --ice: #eaf2f6;
+    --ice-dim: #9fb2c4;
+    --slate: #5b6f85;
+    --glow: #ff8a4c;
+    --glow-dim: #cc6a34;
+    --cold: #4fb3d9;
+    --good: #6fcf97;
+    --warn: #f2c14e;
+    --bad: #e0685a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,179,217,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(255,138,76,0.07), transparent 55%),
+      var(--bg);
+    color: var(--ice);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+  .wrap{ max-width: 1080px; margin: 0 auto; }
+
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    flex-wrap: wrap; gap: 16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 20px; margin-bottom: 28px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.18em;
+    color: var(--glow); text-transform:uppercase; margin-bottom:8px;
+  }
+  h1{
+    font-family:'Oswald', sans-serif; font-weight:700; font-size: 40px;
+    letter-spacing: 0.01em; color: var(--ice); text-transform: uppercase;
+    line-height: 1.05;
+  }
+  h1 span{ color: var(--ice-dim); font-weight: 500; }
+  .updated{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--slate);
+    text-align:right; line-height:1.6;
+  }
+  .updated b{ color: var(--ice-dim); font-weight: 500; }
+  .refresh-all{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    background: var(--surface); color: var(--cold); border:1px solid var(--line);
+    border-radius:100px; padding:6px 14px; cursor:pointer; margin-top:8px;
+  }
+  .refresh-all:hover{ border-color: var(--cold); }
+
+  .controls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 28px; }
+  .controls button{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    background: var(--surface); color: var(--ice-dim);
+    border: 1px solid var(--line); border-radius: 100px;
+    padding: 8px 16px; cursor:pointer; transition: all .15s ease;
+    letter-spacing: 0.02em;
+  }
+  .controls button:hover{ border-color: var(--cold); color: var(--ice); }
+  .controls button.active{
+    background: var(--glow); border-color: var(--glow); color: #1a0e06; font-weight: 600;
+  }
+
+  .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 22px; position: relative; overflow: hidden;
+    transition: border-color .2s ease, transform .2s ease;
+  }
+  .card:hover{ border-color: var(--cold); transform: translateY(-2px); }
+  .card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background: linear-gradient(90deg, var(--cold), var(--glow));
+    opacity:0; transition: opacity .2s ease;
+  }
+  .card:hover::before{ opacity: 1; }
+
+  .resort-name{ font-family:'Oswald', sans-serif; font-weight:600; font-size:24px; text-transform: uppercase; letter-spacing: 0.01em; margin-bottom:2px; }
+  .resort-meta{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--slate); margin-bottom: 16px; display:flex; gap:10px; align-items:center; }
+  .drive-tag{ background: var(--bg-alt); border:1px solid var(--line); border-radius:4px; padding: 2px 8px; color: var(--ice-dim); }
+
+  .gauge-row{ display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+  .gauge{ position: relative; width:64px; height:64px; flex-shrink:0; }
+  .gauge svg{ transform: rotate(-90deg); }
+  .gauge-bg{ fill:none; stroke: var(--line); stroke-width:6; }
+  .gauge-fg{ fill:none; stroke-width:6; stroke-linecap:round; transition: stroke-dashoffset 1s ease; }
+  .gauge-label{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:600; color: var(--ice); }
+  .gauge-desc .num{ font-family:'Oswald', sans-serif; font-size:18px; color:var(--ice); }
+  .gauge-desc .lbl{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--slate); text-transform:uppercase; letter-spacing:.05em;}
+
+  .section-lbl{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--slate); display:flex; justify-content:space-between; align-items:center;
+    border-top: 1px solid var(--line); padding-top:12px; margin-top:14px; margin-bottom:10px;
+  }
+  .section-lbl .dot{ width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:6px; }
+  .dot.live{ background: var(--good); box-shadow:0 0 6px var(--good); }
+  .dot.manual{ background: var(--warn); }
+  .edit-link{ cursor:pointer; color: var(--cold); background:none; border:none; font-family:'JetBrains Mono', monospace; font-size:10px; text-decoration:underline; }
+  .edit-link:hover{ color: var(--ice); }
+
+  .stats{ display:flex; flex-direction:column; gap:10px; }
+  .stat{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; }
+  .stat .k{ color: var(--slate); }
+  .stat .v{ font-family:'JetBrains Mono', monospace; color: var(--ice); font-weight:500; }
+  .stat .v.snow{ color: var(--cold); }
+  .stat .v.next{ color: var(--glow); }
+  .stat .v.muted{ color: var(--slate); }
+
+  .snowbar{ height:6px; border-radius:3px; background: var(--bg-alt); overflow:hidden; margin-top:2px; }
+  .snowbar-fill{ height:100%; background: linear-gradient(90deg, var(--cold), #8fd8f0); }
+
+  .tag-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:16px; }
+  .tag{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.03em;
+    background: var(--bg-alt); border:1px solid var(--line); color: var(--ice-dim);
+    padding: 4px 9px; border-radius: 100px; text-transform:uppercase;
+  }
+
+  .src-link{ display:inline-block; margin-top:14px; font-family:'JetBrains Mono', monospace; font-size:10px; color: var(--slate); text-decoration:none; border-bottom:1px dotted var(--slate); }
+  .src-link:hover{ color: var(--cold); border-color: var(--cold); }
+
+  .skeleton{ color: var(--slate); font-style: normal; }
+  .err{ color: var(--bad); }
+
+  .edit-form{ display:none; flex-direction:column; gap:8px; margin-top:10px; padding:12px; background: var(--bg-alt); border:1px solid var(--line); border-radius:4px; }
+  .edit-form.open{ display:flex; }
+  .edit-form label{ font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--slate); text-transform:uppercase; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .edit-form input{
+    background: var(--surface); border:1px solid var(--line); color: var(--ice);
+    font-family:'JetBrains Mono', monospace; font-size:12px; padding:5px 8px; border-radius:3px; width:90px;
+  }
+  .edit-form .row2{ display:flex; gap:8px; }
+  .edit-form .save-btn{
+    margin-top:4px; background: var(--glow); border:none; color:#1a0e06; font-weight:600;
+    font-family:'JetBrains Mono', monospace; font-size:11px; padding:7px; border-radius:4px; cursor:pointer;
+  }
+
+  footer{
+    margin-top: 40px; padding-top: 20px; border-top:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--slate); line-height: 1.8;
+  }
+  footer b{ color: var(--ice-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="eyebrow">Snowy Mountains · NSW</div>
+      <h1>雪场比较器 <span>/ Resort Comparator</span></h1>
+    </div>
+    <div class="updated">
+      悉尼出发 · <span id="fetchTime">天气加载中…</span><br>
+      <button class="refresh-all" id="refreshAll">↻ 刷新实时天气</button>
+    </div>
+  </header>
+
+  <div class="controls" id="controls">
+    <button class="active" data-sort="default">默认</button>
+    <button data-sort="lifts">按开放缆车比例</button>
+    <button data-sort="snow">按积雪深度</button>
+    <button data-sort="drive">按车程</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <b>关于天气拉不出来：</b>这个页面在 Claude 的预览框里运行时,预览环境本身会限制直接访问白名单之外的外部网址,Open-Meteo 的请求可能因此被挡掉,显示"自动天气拉取失败"。如果你把这个 html 文件<b>下载下来,用浏览器直接打开</b>,或者传到自己的网站/托管服务上,天气板块会正常工作,因为那时候就是普通浏览器环境,没有这层限制。在预览框里失败时,可以用天气备注手动填一下(点"更新数据")。<br><br>
+    <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气/模型积雪深度/未来降雪</b> 来自 Open-Meteo 天气模型 API。
+    <span class="dot manual" style="display:inline-block;"></span> <b>缆车开放数/雪道开放公里数</b> 没有公开 API,保留为手动更新字段,保存在这个工具自己的存储里(不是浏览器缓存)。
+    <b>摄像头</b> 同理没有可靠的公开直链,做成了跳转到各雪场官方摄像头页面的按钮,不做内嵌,避免链接失效或看不到画面。<br>
+    <b>下一步可加：</b>路况/封路提醒(Snowy Mountains Hwy)、票价对比、初中高级道占比、儿童课程信息。
+  </footer>
+
+</div>
+
+<script>
+const resorts = [
+  {
+    id: "perisher", name: "Perisher", cn: "佩里舍",
+    drive: "约 6h",
+    lat: -36.40, lon: 148.41,
+    manualDefault: { liftsOpen: 19, liftsTotal: 47, pisteOpen: 5.9, pisteTotal: 65, lastSnow: "3 Jul · 15cm", weatherNote: "", updatedAt: "2026-07-11" },
+    sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
+    camUrl: "https://www.perisher.com.au/reports-cams/cams",
+    tags: ["最大雪场", "适合初中级+家庭", "地形广"]
+  },
+  {
+    id: "thredbo", name: "Thredbo", cn: "斯瑞德博",
+    drive: "约 6h",
+    lat: -36.50, lon: 148.30,
+    manualDefault: { liftsOpen: 5, liftsTotal: 15, pisteOpen: 1.2, pisteTotal: 52, lastSnow: "3 Jul · 18cm", weatherNote: "", updatedAt: "2026-07-08" },
+    sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
+    camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
+    tags: ["落差最大", "适合中高级", "村落氛围好"]
+  },
+  {
+    id: "charlottepass", name: "Charlotte Pass", cn: "夏洛特山口",
+    drive: "约 6.5h + 雪地车接驳",
+    lat: -36.43, lon: 148.33,
+    manualDefault: { liftsOpen: 2, liftsTotal: 4, pisteOpen: null, pisteTotal: null, lastSnow: "3 Jul · 18cm", weatherNote: "", updatedAt: "2026-07-03" },
+    sourceUrl: "https://charlottepass.com.au/on-mountain/",
+    camUrl: "https://charlottepass.com.au/on-mountain/",
+    tags: ["最高海拔", "人最少", "需接驳/雪地摩托"]
+  }
+];
+
+// live weather cache, filled at runtime
+const liveCache = {};
+// manual (official snow report) cache — backed by persistent artifact storage
+const manualCache = {};
+
+function wmoDesc(code){
+  const map = {
+    0:["☀️","晴朗"],1:["🌤️","大致晴"],2:["⛅","局部多云"],3:["☁️","阴天"],
+    45:["🌫️","雾"],48:["🌫️","雾凇"],
+    51:["🌦️","小毛雨"],53:["🌦️","毛雨"],55:["🌧️","强毛雨"],
+    56:["🌧️","冻毛雨"],57:["🌧️","强冻毛雨"],
+    61:["🌧️","小雨"],63:["🌧️","中雨"],65:["🌧️","大雨"],
+    66:["🌨️","冻雨"],67:["🌨️","强冻雨"],
+    71:["❄️","小雪"],73:["❄️","中雪"],75:["❄️","大雪"],77:["❄️","米雪"],
+    80:["🌦️","阵雨"],81:["🌦️","强阵雨"],82:["⛈️","暴阵雨"],
+    85:["🌨️","阵雪"],86:["🌨️","强阵雪"],
+    95:["⛈️","雷暴"],96:["⛈️","雷暴伴冰雹"],99:["⛈️","强雷暴伴冰雹"]
+  };
+  return map[code] || ["·","未知"];
+}
+
+async function fetchLive(r){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${r.lat}&longitude=${r.lon}`
+    + `&current=temperature_2m,wind_speed_10m,weather_code`
+    + `&hourly=snow_depth`
+    + `&daily=snowfall_sum`
+    + `&timezone=Australia%2FSydney&forecast_days=4`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+
+  let snowDepth = null, snowDepthUnit = "";
+  if(data.hourly && data.hourly.time){
+    const idx = data.hourly.time.indexOf(data.current.time);
+    if(idx >= 0){
+      snowDepth = data.hourly.snow_depth[idx];
+      snowDepthUnit = data.hourly_units.snow_depth;
+      // open-meteo returns snow_depth in metres by default
+      if(snowDepthUnit === "m"){ snowDepth = snowDepth * 100; snowDepthUnit = "cm"; }
+    }
+  }
+  let snowfall72 = null, snowfallUnit = "";
+  if(data.daily && data.daily.snowfall_sum){
+    snowfall72 = data.daily.snowfall_sum.slice(1,4).reduce((a,b)=>a+(b||0),0);
+    snowfallUnit = data.daily_units.snowfall_sum;
+  }
+
+  return {
+    temp: data.current.temperature_2m,
+    wind: data.current.wind_speed_10m,
+    code: data.current.weather_code,
+    time: data.current.time,
+    snowDepth, snowDepthUnit,
+    snowfall72, snowfallUnit
+  };
+}
+
+const hasClaudeStorage = typeof window.storage !== "undefined" && window.storage !== null;
+
+function getManual(r){
+  return manualCache[r.id] || r.manualDefault;
+}
+async function loadManualAll(){
+  await Promise.all(resorts.map(async (r) => {
+    try{
+      if(hasClaudeStorage){
+        const result = await window.storage.get("manual_" + r.id, false);
+        manualCache[r.id] = result ? JSON.parse(result.value) : r.manualDefault;
+      }else{
+        const raw = localStorage.getItem("skicompare_" + r.id);
+        manualCache[r.id] = raw ? JSON.parse(raw) : r.manualDefault;
+      }
+    }catch(e){
+      manualCache[r.id] = r.manualDefault;
+    }
+  }));
+}
+async function setManual(r, obj){
+  manualCache[r.id] = obj;
+  try{
+    if(hasClaudeStorage){
+      await window.storage.set("manual_" + r.id, JSON.stringify(obj), false);
+    }else{
+      localStorage.setItem("skicompare_" + r.id, JSON.stringify(obj));
+    }
+  }catch(e){}
+}
+
+function gaugeSVG(pct, color){
+  const rad = 26, c = 2*Math.PI*rad;
+  const offset = c - (pct/100)*c;
+  return `
+    <div class="gauge">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle class="gauge-bg" cx="32" cy="32" r="${rad}"></circle>
+        <circle class="gauge-fg" cx="32" cy="32" r="${rad}"
+          stroke="${color}" stroke-dasharray="${c}" stroke-dashoffset="${offset}"></circle>
+      </svg>
+      <div class="gauge-label">${pct}%</div>
+    </div>`;
+}
+
+function liveBlockHTML(r){
+  const live = liveCache[r.id];
+  const m = getManual(r);
+  if(live === "error"){
+    return `
+      <div class="stat"><span class="k err">自动天气拉取失败</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">重试</button></span></div>
+      <div class="stat"><span class="k">当前天气(手动)</span><span class="v">${m.weatherNote || "未填写"}</span></div>
+    `;
+  }
+  if(!live){
+    return `<div class="stat"><span class="k skeleton">加载实时天气…</span><span class="v">···</span></div>`;
+  }
+  const [icon, desc] = wmoDesc(live.code);
+  return `
+    <div class="stat"><span class="k">当前天气</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
+    <div class="stat"><span class="k">风速</span><span class="v">${live.wind} km/h</span></div>
+    <div class="stat"><span class="k">模型积雪深度</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : "无数据"}</span></div>
+    <div class="stat"><span class="k">未来72h预报降雪</span><span class="v next">${live.snowfall72 != null ? live.snowfall72.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
+  `;
+}
+
+function cardHTML(r){
+  const m = getManual(r);
+  const liftPct = Math.round((m.liftsOpen / m.liftsTotal) * 100);
+  const gaugeColor = liftPct > 50 ? "var(--good)" : liftPct > 20 ? "var(--warn)" : "var(--glow)";
+  const pisteText = m.pisteOpen != null
+    ? `${m.pisteOpen} / ${m.pisteTotal} km`
+    : `${m.liftsOpen} / ${m.liftsTotal} 条缆车开放`;
+
+  return `
+  <div class="card" data-id="${r.id}">
+    <div class="resort-name">${r.name}</div>
+    <div class="resort-meta">${r.cn} · <span class="drive-tag">🚗 ${r.drive}</span></div>
+
+    <div class="gauge-row">
+      ${gaugeSVG(liftPct, gaugeColor)}
+      <div class="gauge-desc">
+        <div class="num">${m.liftsOpen} / ${m.liftsTotal}</div>
+        <div class="lbl">缆车开放</div>
+      </div>
+    </div>
+
+    <div class="section-lbl">
+      <span><span class="dot manual"></span>官方雪况 · 手动更新于 ${m.updatedAt}</span>
+      <button class="edit-link" onclick="toggleEdit('${r.id}')">更新数据</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="k">雪道开放</span><span class="v">${pisteText}</span></div>
+      <div class="stat"><span class="k">最近降雪</span><span class="v">${m.lastSnow}</span></div>
+    </div>
+
+    <div class="edit-form" id="edit-${r.id}">
+      <div class="row2">
+        <label>开放缆车 <input type="number" id="liftsOpen-${r.id}" value="${m.liftsOpen}"></label>
+        <label>总缆车 <input type="number" id="liftsTotal-${r.id}" value="${m.liftsTotal}"></label>
+      </div>
+      <div class="row2">
+        <label>雪道开放km <input type="number" step="0.1" id="pisteOpen-${r.id}" value="${m.pisteOpen ?? ''}"></label>
+        <label>雪道总km <input type="number" step="0.1" id="pisteTotal-${r.id}" value="${m.pisteTotal ?? ''}"></label>
+      </div>
+      <label>最近降雪 <input type="text" id="lastSnow-${r.id}" value="${m.lastSnow}" style="width:150px;"></label>
+      <label>天气备注 <input type="text" id="weatherNote-${r.id}" value="${m.weatherNote || ''}" placeholder="如自动天气失败,可手填" style="width:150px;"></label>
+      <button class="save-btn" onclick="saveEdit('${r.id}')">保存</button>
+    </div>
+
+    <div class="section-lbl"><span><span class="dot live"></span>实时天气 · Open-Meteo 自动</span></div>
+    <div class="stats" id="live-${r.id}">
+      ${liveBlockHTML(r)}
+    </div>
+
+    <div class="section-lbl"><span><span class="dot manual"></span>摄像头</span></div>
+    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:0; margin-bottom:4px;">📷 打开 ${r.name} 官方实时摄像头页面 →</a>
+
+    <div class="tag-row">${r.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+    <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ 查看官方雪况页面</a>
+  </div>`;
+}
+
+let currentSort = "default";
+
+function render(){
+  let list = [...resorts];
+  if(currentSort === "lifts") list.sort((a,b) => {
+    const ma = getManual(a), mb = getManual(b);
+    return (mb.liftsOpen/mb.liftsTotal) - (ma.liftsOpen/ma.liftsTotal);
+  });
+  if(currentSort === "snow") list.sort((a,b) => {
+    const la = liveCache[a.id], lb = liveCache[b.id];
+    const da = (la && la !== "error" && la.snowDepth) || 0;
+    const db = (lb && lb !== "error" && lb.snowDepth) || 0;
+    return db - da;
+  });
+  if(currentSort === "drive") list.sort((a,b) => {
+    const ta = parseFloat(a.drive.match(/[\d.]+/)[0]);
+    const tb = parseFloat(b.drive.match(/[\d.]+/)[0]);
+    return ta - tb;
+  });
+  document.getElementById("grid").innerHTML = list.map(cardHTML).join("");
+}
+
+function toggleEdit(id){
+  const el = document.getElementById("edit-" + id);
+  el.classList.toggle("open");
+}
+async function saveEdit(id){
+  const r = resorts.find(x => x.id === id);
+  const obj = {
+    liftsOpen: parseInt(document.getElementById("liftsOpen-"+id).value) || 0,
+    liftsTotal: parseInt(document.getElementById("liftsTotal-"+id).value) || 1,
+    pisteOpen: document.getElementById("pisteOpen-"+id).value ? parseFloat(document.getElementById("pisteOpen-"+id).value) : null,
+    pisteTotal: document.getElementById("pisteTotal-"+id).value ? parseFloat(document.getElementById("pisteTotal-"+id).value) : null,
+    lastSnow: document.getElementById("lastSnow-"+id).value,
+    weatherNote: document.getElementById("weatherNote-"+id).value,
+    updatedAt: new Date().toISOString().slice(0,10)
+  };
+  await setManual(r, obj);
+  render();
+}
+
+async function retryOne(id){
+  const r = resorts.find(x => x.id === id);
+  delete liveCache[id];
+  document.getElementById("live-" + id).innerHTML = liveBlockHTML(r);
+  try{
+    liveCache[id] = await fetchLive(r);
+  }catch(e){
+    liveCache[id] = "error";
+  }
+  document.getElementById("live-" + id).innerHTML = liveBlockHTML(r);
+}
+
+async function loadAllLive(){
+  document.getElementById("fetchTime").textContent = "天气加载中…";
+  await Promise.all(resorts.map(async (r) => {
+    try{
+      liveCache[r.id] = await fetchLive(r);
+    }catch(e){
+      liveCache[r.id] = "error";
+    }
+    const el = document.getElementById("live-" + r.id);
+    if(el) el.innerHTML = liveBlockHTML(r);
+  }));
+  const now = new Date();
+  document.getElementById("fetchTime").textContent = "天气更新于 " + now.toLocaleTimeString("zh-CN", {hour:'2-digit', minute:'2-digit'});
+}
+
+document.getElementById("controls").addEventListener("click", (e) => {
+  if(e.target.tagName !== "BUTTON") return;
+  [...document.querySelectorAll(".controls button")].forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  currentSort = e.target.dataset.sort;
+  render();
+});
+document.getElementById("refreshAll").addEventListener("click", loadAllLive);
+
+(async () => {
+  await loadManualAll();
+  render();
+  loadAllLive();
+})();
+</script>
+</body>
+</html>
