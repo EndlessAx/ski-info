@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>雪场比较器 · Snowy Mountains</title>
+<title>雪场概览 · NSW Snowy Mountains</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -167,7 +167,7 @@
   <header>
     <div>
       <div class="eyebrow">Snowy Mountains · NSW</div>
-      <h1>雪场比较器 <span>/ Resort Comparator</span></h1>
+      <h1>雪场概览 <span>/ NSW Ski Resorts</span></h1>
     </div>
     <div class="updated">
       悉尼出发 · <span id="fetchTime">天气加载中…</span><br>
@@ -185,10 +185,10 @@
   <div class="grid" id="grid"></div>
 
   <footer>
-    <b>关于天气拉不出来：</b>这个页面在 Claude 的预览框里运行时,预览环境本身会限制直接访问白名单之外的外部网址,Open-Meteo 的请求可能因此被挡掉,显示"自动天气拉取失败"。如果你把这个 html 文件<b>下载下来,用浏览器直接打开</b>,或者传到自己的网站/托管服务上,天气板块会正常工作,因为那时候就是普通浏览器环境,没有这层限制。在预览框里失败时,可以用天气备注手动填一下(点"更新数据")。<br><br>
-    <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气/模型积雪深度/未来降雪</b> 来自 Open-Meteo 天气模型 API。
-    <span class="dot manual" style="display:inline-block;"></span> <b>缆车开放数/雪道开放公里数</b> 没有公开 API,保留为手动更新字段,保存在这个工具自己的存储里(不是浏览器缓存)。
-    <b>摄像头</b> 同理没有可靠的公开直链,做成了跳转到各雪场官方摄像头页面的按钮,不做内嵌,避免链接失效或看不到画面。<br>
+    <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气 / 模型积雪深度 / 过去及未来 72h 降雪</b> 来自 Open-Meteo 天气模型 API,由浏览器直接拉取。
+    <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo 的缆车(及 Thredbo 雪道)开放状态</b> 由一个自建的 Cloudflare Worker 实时抓取各雪场官方状态页(绕过浏览器 CORS 限制),每 5 分钟缓存一次。
+    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn</b> 暂无结构化状态页,缆车状态请点卡片里的"见官方页面"链接查看。
+    <b>摄像头</b> 没有可靠的公开直链,做成了跳转到各雪场官方摄像头页面的按钮。<br>
     <b>下一步可加：</b>路况/封路提醒(Snowy Mountains Hwy)、票价对比、初中高级道占比、儿童课程信息。
   </footer>
 
@@ -200,35 +200,49 @@ const resorts = [
     id: "perisher", name: "Perisher", cn: "佩里舍",
     drive: "约 6h",
     lat: -36.40, lon: 148.41,
-    manualDefault: { liftsOpen: 19, liftsTotal: 47, pisteOpen: 5.9, pisteTotal: 65, lastSnow: "3 Jul · 15cm", weatherNote: "", updatedAt: "2026-07-11" },
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
+    liftKey: "perisher", // live lift status via Worker (see /worker/lift-status.js)
     tags: ["最大雪场", "适合初中级+家庭", "地形广"]
   },
   {
     id: "thredbo", name: "Thredbo", cn: "斯瑞德博",
     drive: "约 6h",
     lat: -36.50, lon: 148.30,
-    manualDefault: { liftsOpen: 5, liftsTotal: 15, pisteOpen: 1.2, pisteTotal: 52, lastSnow: "3 Jul · 18cm", weatherNote: "", updatedAt: "2026-07-08" },
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
+    liftKey: "thredbo", // live lift + trail status via Worker
     tags: ["落差最大", "适合中高级", "村落氛围好"]
   },
   {
     id: "charlottepass", name: "Charlotte Pass", cn: "夏洛特山口",
     drive: "约 6.5h + 雪地车接驳",
     lat: -36.43, lon: 148.33,
-    manualDefault: { liftsOpen: 2, liftsTotal: 4, pisteOpen: null, pisteTotal: null, lastSnow: "3 Jul · 18cm", weatherNote: "", updatedAt: "2026-07-03" },
     sourceUrl: "https://charlottepass.com.au/on-mountain/",
     camUrl: "https://charlottepass.com.au/on-mountain/",
     tags: ["最高海拔", "人最少", "需接驳/雪地摩托"]
+  },
+  {
+    id: "selwyn", name: "Selwyn", cn: "塞尔温",
+    drive: "约 6h",
+    lat: -35.906, lon: 148.4495,
+    sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
+    camUrl: "https://selwynsnow.com.au/snow-and-weather/",
+    tags: ["离悉尼/堪培拉最近", "适合初级+家庭", "性价比高"]
   }
 ];
 
+// Base URL of your deployed Cloudflare Worker (see /worker/lift-status.js).
+// Leave as the placeholder to disable live lifts (resorts then show a link to
+// their official page instead). Once deployed, set e.g.
+// "https://ski-info-lift-status.YOURNAME.workers.dev"
+const LIFT_PROXY_BASE = "https://ski-info-lift-status.borisxu523.workers.dev";
+const liftProxyEnabled = !LIFT_PROXY_BASE.includes("REPLACE-WITH-YOUR-WORKER");
+
 // live weather cache, filled at runtime
 const liveCache = {};
-// manual (official snow report) cache — backed by persistent artifact storage
-const manualCache = {};
+// live lift status cache (via Cloudflare Worker proxy), filled at runtime
+const liveLiftCache = {};
 
 function wmoDesc(code){
   const map = {
@@ -251,7 +265,7 @@ async function fetchLive(r){
     + `&current=temperature_2m,wind_speed_10m,weather_code`
     + `&hourly=snow_depth`
     + `&daily=snowfall_sum`
-    + `&timezone=Australia%2FSydney&forecast_days=4`;
+    + `&timezone=Australia%2FSydney&past_days=3&forecast_days=4`;
   const res = await fetch(url);
   if(!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
@@ -266,9 +280,19 @@ async function fetchLive(r){
       if(snowDepthUnit === "m"){ snowDepth = snowDepth * 100; snowDepthUnit = "cm"; }
     }
   }
-  let snowfall72 = null, snowfallUnit = "";
-  if(data.daily && data.daily.snowfall_sum){
-    snowfall72 = data.daily.snowfall_sum.slice(1,4).reduce((a,b)=>a+(b||0),0);
+
+  // Split the daily snowfall series around today: 3 days before = recent,
+  // 3 days after = forecast. Robust to array length via today's index.
+  let recentSnow = null, next72 = null, snowfallUnit = "";
+  if(data.daily && data.daily.snowfall_sum && data.daily.time){
+    const arr = data.daily.snowfall_sum;
+    const today = data.current.time.slice(0,10);
+    const ti = data.daily.time.indexOf(today);
+    const sum = (a,b) => arr.slice(a,b).reduce((x,y)=>x+(y||0),0);
+    if(ti >= 0){
+      recentSnow = sum(Math.max(0,ti-3), ti);   // past 3 days
+      next72 = sum(ti+1, ti+4);                  // next 3 days
+    }
     snowfallUnit = data.daily_units.snowfall_sum;
   }
 
@@ -278,39 +302,35 @@ async function fetchLive(r){
     code: data.current.weather_code,
     time: data.current.time,
     snowDepth, snowDepthUnit,
-    snowfall72, snowfallUnit
+    recentSnow, next72, snowfallUnit
   };
 }
 
-const hasClaudeStorage = typeof window.storage !== "undefined" && window.storage !== null;
+function liftProxyUrl(r){
+  return LIFT_PROXY_BASE.replace(/\/+$/, "") + "/" + r.liftKey;
+}
+async function fetchLiveLifts(r){
+  const res = await fetch(liftProxyUrl(r));
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || "proxy returned ok:false");
+  return data;
+}
 
-function getManual(r){
-  return manualCache[r.id] || r.manualDefault;
-}
-async function loadManualAll(){
-  await Promise.all(resorts.map(async (r) => {
-    try{
-      if(hasClaudeStorage){
-        const result = await window.storage.get("manual_" + r.id, false);
-        manualCache[r.id] = result ? JSON.parse(result.value) : r.manualDefault;
-      }else{
-        const raw = localStorage.getItem("skicompare_" + r.id);
-        manualCache[r.id] = raw ? JSON.parse(raw) : r.manualDefault;
-      }
-    }catch(e){
-      manualCache[r.id] = r.manualDefault;
-    }
-  }));
-}
-async function setManual(r, obj){
-  manualCache[r.id] = obj;
-  try{
-    if(hasClaudeStorage){
-      await window.storage.set("manual_" + r.id, JSON.stringify(obj), false);
-    }else{
-      localStorage.setItem("skicompare_" + r.id, JSON.stringify(obj));
-    }
-  }catch(e){}
+// Returns lift status for a resort. When the Worker has live data:
+//   { live:true, open, total, detail, trails }
+// otherwise (no liftKey, or fetch failed): { live:false }
+function getLiftCounts(r){
+  const live = liveLiftCache[r.id];
+  if(live && live !== "error" && live.ok && live.lifts){
+    return {
+      open: live.lifts.open,
+      total: live.lifts.total || 1,
+      live: true,
+      detail: live.detail,
+      trails: live.trails
+    };
+  }
+  return { live: false };
 }
 
 function gaugeSVG(pct, color){
@@ -329,11 +349,9 @@ function gaugeSVG(pct, color){
 
 function liveBlockHTML(r){
   const live = liveCache[r.id];
-  const m = getManual(r);
   if(live === "error"){
     return `
       <div class="stat"><span class="k err">自动天气拉取失败</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">重试</button></span></div>
-      <div class="stat"><span class="k">当前天气(手动)</span><span class="v">${m.weatherNote || "未填写"}</span></div>
     `;
   }
   if(!live){
@@ -344,53 +362,68 @@ function liveBlockHTML(r){
     <div class="stat"><span class="k">当前天气</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
     <div class="stat"><span class="k">风速</span><span class="v">${live.wind} km/h</span></div>
     <div class="stat"><span class="k">模型积雪深度</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : "无数据"}</span></div>
-    <div class="stat"><span class="k">未来72h预报降雪</span><span class="v next">${live.snowfall72 != null ? live.snowfall72.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
+    <div class="stat"><span class="k">过去72h降雪</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
+    <div class="stat"><span class="k">未来72h预报降雪</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
   `;
 }
 
-function cardHTML(r){
-  const m = getManual(r);
-  const liftPct = Math.round((m.liftsOpen / m.liftsTotal) * 100);
-  const gaugeColor = liftPct > 50 ? "var(--good)" : liftPct > 20 ? "var(--warn)" : "var(--glow)";
-  const pisteText = m.pisteOpen != null
-    ? `${m.pisteOpen} / ${m.pisteTotal} km`
-    : `${m.liftsOpen} / ${m.liftsTotal} 条缆车开放`;
-
+function liftAreasHTML(r){
+  const counts = getLiftCounts(r);
+  if(!counts.live || !counts.detail) return "";
   return `
-  <div class="card" data-id="${r.id}">
-    <div class="resort-name">${r.name}</div>
-    <div class="resort-meta">${r.cn} · <span class="drive-tag">🚗 ${r.drive}</span></div>
+    <div class="edit-form" id="lifts-${r.id}">
+      ${counts.detail.map(g => `
+        <div style="margin-bottom:8px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--slate); text-transform:uppercase; margin-bottom:4px;">${g.group}</div>
+          ${g.items.map(l => {
+            const s = l.status.toLowerCase();
+            const color = s === "open" ? "var(--good)" : (s.includes("hold") || s === "busy" || s === "on standby") ? "var(--warn)" : "var(--slate)";
+            return `<div class="stat" style="font-size:12px;"><span class="k">${l.name}</span><span class="v" style="color:${color};">${l.status}${l.hours ? ` · ${l.hours}` : ""}</span></div>`;
+          }).join("")}
+        </div>
+      `).join("")}
+    </div>`;
+}
 
+function liftSectionHTML(r){
+  const counts = getLiftCounts(r);
+  if(counts.live){
+    const liftPct = Math.round((counts.open / counts.total) * 100);
+    const gaugeColor = liftPct > 50 ? "var(--good)" : liftPct > 20 ? "var(--warn)" : "var(--glow)";
+    return `
     <div class="gauge-row">
       ${gaugeSVG(liftPct, gaugeColor)}
       <div class="gauge-desc">
-        <div class="num">${m.liftsOpen} / ${m.liftsTotal}</div>
+        <div class="num">${counts.open} / ${counts.total}</div>
         <div class="lbl">缆车开放</div>
       </div>
     </div>
 
     <div class="section-lbl">
-      <span><span class="dot manual"></span>官方雪况 · 手动更新于 ${m.updatedAt}</span>
-      <button class="edit-link" onclick="toggleEdit('${r.id}')">更新数据</button>
+      <span><span class="dot live"></span>缆车状态 · ${r.name} 官网实时</span>
+      <button class="edit-link" onclick="toggleLiftDetail('${r.id}')">查看详情</button>
     </div>
-    <div class="stats">
-      <div class="stat"><span class="k">雪道开放</span><span class="v">${pisteText}</span></div>
-      <div class="stat"><span class="k">最近降雪</span><span class="v">${m.lastSnow}</span></div>
-    </div>
+    ${counts.trails ? `<div class="stats"><div class="stat"><span class="k">雪道开放</span><span class="v">${counts.trails.open} / ${counts.trails.total} 条</span></div></div>` : ""}
+    ${liftAreasHTML(r)}`;
+  }
+  // Show "loading" only while a proxy fetch is genuinely in flight; otherwise
+  // (no liftKey, proxy disabled, or fetch failed) link out to the official page.
+  const loading = liftProxyEnabled && r.liftKey && liveLiftCache[r.id] === undefined;
+  const msg = loading
+    ? `<span class="k skeleton">加载缆车状态…</span>`
+    : `<span class="k">缆车实时状态</span><span class="v"><a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener" style="margin:0;border:none;">见官方页面 →</a></span>`;
+  return `
+    <div class="section-lbl"><span><span class="dot manual"></span>缆车状态</span></div>
+    <div class="stats"><div class="stat">${msg}</div></div>`;
+}
 
-    <div class="edit-form" id="edit-${r.id}">
-      <div class="row2">
-        <label>开放缆车 <input type="number" id="liftsOpen-${r.id}" value="${m.liftsOpen}"></label>
-        <label>总缆车 <input type="number" id="liftsTotal-${r.id}" value="${m.liftsTotal}"></label>
-      </div>
-      <div class="row2">
-        <label>雪道开放km <input type="number" step="0.1" id="pisteOpen-${r.id}" value="${m.pisteOpen ?? ''}"></label>
-        <label>雪道总km <input type="number" step="0.1" id="pisteTotal-${r.id}" value="${m.pisteTotal ?? ''}"></label>
-      </div>
-      <label>最近降雪 <input type="text" id="lastSnow-${r.id}" value="${m.lastSnow}" style="width:150px;"></label>
-      <label>天气备注 <input type="text" id="weatherNote-${r.id}" value="${m.weatherNote || ''}" placeholder="如自动天气失败,可手填" style="width:150px;"></label>
-      <button class="save-btn" onclick="saveEdit('${r.id}')">保存</button>
-    </div>
+function cardHTML(r){
+  return `
+  <div class="card" data-id="${r.id}">
+    <div class="resort-name">${r.name}</div>
+    <div class="resort-meta">${r.cn} · <span class="drive-tag">🚗 ${r.drive}</span></div>
+
+    ${liftSectionHTML(r)}
 
     <div class="section-lbl"><span><span class="dot live"></span>实时天气 · Open-Meteo 自动</span></div>
     <div class="stats" id="live-${r.id}">
@@ -410,8 +443,10 @@ let currentSort = "default";
 function render(){
   let list = [...resorts];
   if(currentSort === "lifts") list.sort((a,b) => {
-    const ma = getManual(a), mb = getManual(b);
-    return (mb.liftsOpen/mb.liftsTotal) - (ma.liftsOpen/ma.liftsTotal);
+    const ca = getLiftCounts(a), cb = getLiftCounts(b);
+    const ra = ca.live ? ca.open/ca.total : -1;   // resorts without live data sort last
+    const rb = cb.live ? cb.open/cb.total : -1;
+    return rb - ra;
   });
   if(currentSort === "snow") list.sort((a,b) => {
     const la = liveCache[a.id], lb = liveCache[b.id];
@@ -427,23 +462,9 @@ function render(){
   document.getElementById("grid").innerHTML = list.map(cardHTML).join("");
 }
 
-function toggleEdit(id){
-  const el = document.getElementById("edit-" + id);
+function toggleLiftDetail(id){
+  const el = document.getElementById("lifts-" + id);
   el.classList.toggle("open");
-}
-async function saveEdit(id){
-  const r = resorts.find(x => x.id === id);
-  const obj = {
-    liftsOpen: parseInt(document.getElementById("liftsOpen-"+id).value) || 0,
-    liftsTotal: parseInt(document.getElementById("liftsTotal-"+id).value) || 1,
-    pisteOpen: document.getElementById("pisteOpen-"+id).value ? parseFloat(document.getElementById("pisteOpen-"+id).value) : null,
-    pisteTotal: document.getElementById("pisteTotal-"+id).value ? parseFloat(document.getElementById("pisteTotal-"+id).value) : null,
-    lastSnow: document.getElementById("lastSnow-"+id).value,
-    weatherNote: document.getElementById("weatherNote-"+id).value,
-    updatedAt: new Date().toISOString().slice(0,10)
-  };
-  await setManual(r, obj);
-  render();
 }
 
 async function retryOne(id){
@@ -456,6 +477,18 @@ async function retryOne(id){
     liveCache[id] = "error";
   }
   document.getElementById("live-" + id).innerHTML = liveBlockHTML(r);
+  if(liftProxyEnabled && r.liftKey) await retryLifts(id);
+}
+
+async function retryLifts(id){
+  const r = resorts.find(x => x.id === id);
+  if(!liftProxyEnabled || !r.liftKey) return;
+  try{
+    liveLiftCache[id] = await fetchLiveLifts(r);
+  }catch(e){
+    liveLiftCache[id] = "error";
+  }
+  render();
 }
 
 async function loadAllLive(){
@@ -468,7 +501,16 @@ async function loadAllLive(){
     }
     const el = document.getElementById("live-" + r.id);
     if(el) el.innerHTML = liveBlockHTML(r);
+
+    if(liftProxyEnabled && r.liftKey){
+      try{
+        liveLiftCache[r.id] = await fetchLiveLifts(r);
+      }catch(e){
+        liveLiftCache[r.id] = "error";
+      }
+    }
   }));
+  render();
   const now = new Date();
   document.getElementById("fetchTime").textContent = "天气更新于 " + now.toLocaleTimeString("zh-CN", {hour:'2-digit', minute:'2-digit'});
 }
@@ -482,11 +524,8 @@ document.getElementById("controls").addEventListener("click", (e) => {
 });
 document.getElementById("refreshAll").addEventListener("click", loadAllLive);
 
-(async () => {
-  await loadManualAll();
-  render();
-  loadAllLive();
-})();
+render();
+loadAllLive();
 </script>
 </body>
 </html>

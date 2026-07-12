@@ -1,0 +1,3 @@
+name = "ski-info-lift-status"
+main = "lift-status.js"
+compatibility_date = "2026-07-01"
