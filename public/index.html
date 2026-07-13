@@ -128,6 +128,20 @@
   .snowbar{ height:6px; border-radius:3px; background: var(--bg-alt); overflow:hidden; margin-top:2px; }
   .snowbar-fill{ height:100%; background: linear-gradient(90deg, var(--cold), #8fd8f0); }
 
+  .forecast-row{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+  .forecast-day{
+    flex:0 0 auto; width:56px; text-align:center; background: var(--bg-alt);
+    border:1px solid var(--line); border-radius:4px; padding:8px 2px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .fd-dow{ font-size:10px; color: var(--slate); text-transform:uppercase; }
+  .fd-icon{ font-size:18px; margin:4px 0; }
+  .fd-temp{ font-size:11px; }
+  .fd-temp .fd-max{ color: var(--ice); }
+  .fd-temp .fd-min{ color: var(--slate); }
+  .fd-snow{ font-size:10px; color: var(--cold); margin-top:4px; }
+  .fd-snow.muted{ color: var(--slate); }
+
   .tag-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:16px; }
   .tag{
     font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.03em;
@@ -168,6 +182,12 @@
     display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 12px rgba(111,207,151,.5);
   }
   .live-play .live-lbl{ font-family:'JetBrains Mono', monospace; font-size:10px; color:#fff; letter-spacing:.02em; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  .live-expand{
+    position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px; border-radius:4px;
+    background: rgba(13,20,31,.75); border:1px solid var(--line); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer;
+  }
+  .live-expand:hover{ border-color: var(--cold); background: rgba(13,20,31,.95); }
 
   .lightbox{
     display:none; position:fixed; inset:0; background:rgba(6,10,16,.88);
@@ -176,6 +196,7 @@
   .lightbox.open{ display:flex; }
   .lightbox-inner{ max-width:900px; width:100%; text-align:center; }
   .lightbox img{ max-width:100%; max-height:75vh; border-radius:6px; border:1px solid var(--line); }
+  .lightbox iframe{ width:100%; aspect-ratio:16/9; max-height:75vh; border-radius:6px; border:1px solid var(--line); }
   .lightbox-cap{ margin-top:12px; font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--ice-dim); }
   .lightbox-close{
     position:absolute; top:20px; right:24px; background:none; border:none; color: var(--ice);
@@ -232,6 +253,7 @@
     <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
     <div class="lightbox-inner">
       <img id="lightboxImg" src="" alt="">
+      <iframe id="lightboxFrame" src="" style="display:none;" allow="autoplay; fullscreen" allowfullscreen title=""></iframe>
       <div class="lightbox-cap" id="lightboxCap"></div>
     </div>
   </div>
@@ -372,8 +394,8 @@ async function fetchLive(r){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${r.lat}&longitude=${r.lon}`
     + `&current=temperature_2m,wind_speed_10m,weather_code`
     + `&hourly=snow_depth`
-    + `&daily=snowfall_sum`
-    + `&timezone=Australia%2FSydney&past_days=3&forecast_days=4`;
+    + `&daily=snowfall_sum,weather_code,temperature_2m_max,temperature_2m_min`
+    + `&timezone=Australia%2FSydney&past_days=3&forecast_days=7`;
   const res = await fetch(url);
   if(!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
@@ -392,6 +414,7 @@ async function fetchLive(r){
   // Split the daily snowfall series around today: 3 days before = recent,
   // 3 days after = forecast. Robust to array length via today's index.
   let recentSnow = null, next72 = null, snowfallUnit = "";
+  let forecast7 = [];
   if(data.daily && data.daily.snowfall_sum && data.daily.time){
     const arr = data.daily.snowfall_sum;
     const today = data.current.time.slice(0,10);
@@ -400,6 +423,13 @@ async function fetchLive(r){
     if(ti >= 0){
       recentSnow = sum(Math.max(0,ti-3), ti);   // past 3 days
       next72 = sum(ti+1, ti+4);                  // next 3 days
+      forecast7 = data.daily.time.slice(ti, ti+7).map((date, k) => ({
+        date,
+        code: data.daily.weather_code[ti+k],
+        tmax: data.daily.temperature_2m_max[ti+k],
+        tmin: data.daily.temperature_2m_min[ti+k],
+        snowfall: data.daily.snowfall_sum[ti+k]
+      }));
     }
     snowfallUnit = data.daily_units.snowfall_sum;
   }
@@ -410,7 +440,8 @@ async function fetchLive(r){
     code: data.current.weather_code,
     time: data.current.time,
     snowDepth, snowDepthUnit,
-    recentSnow, next72, snowfallUnit
+    recentSnow, next72, snowfallUnit,
+    forecast7
   };
 }
 
@@ -473,6 +504,28 @@ function liveBlockHTML(r){
     <div class="stat"><span class="k">过去72h降雪</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
     <div class="stat"><span class="k">未来72h预报降雪</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
   `;
+}
+
+const weekdayCN = ["周日","周一","周二","周三","周四","周五","周六"];
+function forecastRowHTML(r){
+  const live = liveCache[r.id];
+  if(live === "error" || !live) return "";
+  if(!live.forecast7 || !live.forecast7.length) return "";
+  return `
+    <div class="section-lbl"><span><span class="dot live"></span>未来 7 天预报</span></div>
+    <div class="forecast-row">
+      ${live.forecast7.map((d, i) => {
+        const [icon] = wmoDesc(d.code);
+        const dow = i === 0 ? "今天" : weekdayCN[new Date(d.date).getDay()];
+        return `
+        <div class="forecast-day">
+          <div class="fd-dow">${dow}</div>
+          <div class="fd-icon">${icon}</div>
+          <div class="fd-temp"><span class="fd-max">${Math.round(d.tmax)}°</span> <span class="fd-min">${Math.round(d.tmin)}°</span></div>
+          <div class="fd-snow${d.snowfall > 0 ? "" : " muted"}">${d.snowfall > 0 ? d.snowfall.toFixed(1) + "cm" : "-"}</div>
+        </div>`;
+      }).join("")}
+    </div>`;
 }
 
 function liftAreasHTML(r){
@@ -542,12 +595,26 @@ function camGridHTML(r){
 function openLightbox(resortId, i){
   const r = resorts.find(x => x.id === resortId);
   const c = r.cams[i];
-  document.getElementById("lightboxImg").src = `${r.camBase}${c.file}?ts=${Date.now()}`;
+  const img = document.getElementById("lightboxImg");
+  img.style.display = "block";
+  img.src = `${r.camBase}${c.file}?ts=${Date.now()}`;
+  document.getElementById("lightboxFrame").style.display = "none";
+  document.getElementById("lightboxFrame").src = "";
   document.getElementById("lightboxCap").textContent = `${r.name} · ${c.name}`;
+  document.getElementById("lightbox").classList.add("open");
+}
+function openLightboxVideo(embedUrl, caption){
+  document.getElementById("lightboxImg").style.display = "none";
+  document.getElementById("lightboxImg").src = "";
+  const frame = document.getElementById("lightboxFrame");
+  frame.style.display = "block";
+  frame.src = embedUrl;
+  document.getElementById("lightboxCap").textContent = caption;
   document.getElementById("lightbox").classList.add("open");
 }
 function closeLightbox(){
   document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightboxFrame").src = ""; // stop playback
 }
 document.addEventListener("keydown", (e) => {
   if(e.key === "Escape") closeLightbox();
@@ -588,8 +655,13 @@ function toggleLiveGrid(id){
 function playLiveCam(resortId, i){
   const r = resorts.find(x => x.id === resortId);
   const c = r.liveCams[i];
+  const url = liveCamEmbedUrl(c);
+  const caption = `${r.name} · ${c.name}`;
   const el = document.getElementById(`live-tile-${resortId}-${i}`);
-  el.innerHTML = `<iframe src="${liveCamEmbedUrl(c)}" allow="autoplay; fullscreen" allowfullscreen title="${c.name}"></iframe>`;
+  el.innerHTML = `
+    <iframe src="${url}" allow="autoplay; fullscreen" allowfullscreen title="${c.name}"></iframe>
+    <button class="live-expand" onclick="openLightboxVideo('${url}', '${caption}')" title="放大播放">⛶</button>
+  `;
 }
 
 function cardHTML(r){
@@ -603,6 +675,9 @@ function cardHTML(r){
     <div class="section-lbl"><span><span class="dot live"></span>实时天气 · Open-Meteo 自动</span></div>
     <div class="stats" id="live-${r.id}">
       ${liveBlockHTML(r)}
+    </div>
+    <div id="forecast-${r.id}">
+      ${forecastRowHTML(r)}
     </div>
 
     ${liveGridHTML(r)}
@@ -655,6 +730,7 @@ async function retryOne(id){
     liveCache[id] = "error";
   }
   document.getElementById("live-" + id).innerHTML = liveBlockHTML(r);
+  document.getElementById("forecast-" + id).innerHTML = forecastRowHTML(r);
   if(liftProxyEnabled && r.liftKey) await retryLifts(id);
 }
 
@@ -680,6 +756,8 @@ async function loadAllLive(){
     }
     const el = document.getElementById("live-" + r.id);
     if(el) el.innerHTML = liveBlockHTML(r);
+    const fel = document.getElementById("forecast-" + r.id);
+    if(fel) fel.innerHTML = forecastRowHTML(r);
 
     if(liftProxyEnabled && r.liftKey){
       try{
