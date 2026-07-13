@@ -138,6 +138,50 @@
   .src-link{ display:inline-block; margin-top:14px; font-family:'JetBrains Mono', monospace; font-size:10px; color: var(--slate); text-decoration:none; border-bottom:1px dotted var(--slate); }
   .src-link:hover{ color: var(--cold); border-color: var(--cold); }
 
+  .cam-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; }
+  .cam-thumb{
+    position:relative; aspect-ratio: 4/3; border-radius:4px; overflow:hidden;
+    border:1px solid var(--line); cursor:pointer; background: var(--bg-alt);
+  }
+  .cam-thumb img{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .2s ease; }
+  .cam-thumb:hover img{ transform: scale(1.06); }
+  .cam-thumb:hover{ border-color: var(--cold); }
+  .cam-thumb .cam-lbl{
+    position:absolute; left:0; right:0; bottom:0; padding:3px 5px;
+    background: linear-gradient(0deg, rgba(0,0,0,.65), transparent);
+    font-family:'JetBrains Mono', monospace; font-size:9px; color:#fff; letter-spacing:.02em;
+  }
+
+  .live-grid{ display:none; grid-template-columns: repeat(2, 1fr); gap:8px; }
+  .live-grid.open{ display:grid; }
+  .live-tile{
+    position:relative; aspect-ratio:16/9; border-radius:4px; overflow:hidden;
+    border:1px solid var(--line); background: var(--bg-alt);
+  }
+  .live-tile iframe{ width:100%; height:100%; border:0; display:block; }
+  .live-play{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; cursor:pointer; background: rgba(13,20,31,.4); border:none; width:100%; height:100%; padding:0;
+  }
+  .live-play .play-icon{
+    width:36px; height:36px; border-radius:50%; background: var(--good); color:#0a1a12;
+    display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 12px rgba(111,207,151,.5);
+  }
+  .live-play .live-lbl{ font-family:'JetBrains Mono', monospace; font-size:10px; color:#fff; letter-spacing:.02em; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+
+  .lightbox{
+    display:none; position:fixed; inset:0; background:rgba(6,10,16,.88);
+    z-index:100; align-items:center; justify-content:center; padding:40px 20px;
+  }
+  .lightbox.open{ display:flex; }
+  .lightbox-inner{ max-width:900px; width:100%; text-align:center; }
+  .lightbox img{ max-width:100%; max-height:75vh; border-radius:6px; border:1px solid var(--line); }
+  .lightbox-cap{ margin-top:12px; font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--ice-dim); }
+  .lightbox-close{
+    position:absolute; top:20px; right:24px; background:none; border:none; color: var(--ice);
+    font-size:28px; line-height:1; cursor:pointer;
+  }
+
   .skeleton{ color: var(--slate); font-style: normal; }
   .err{ color: var(--bad); }
 
@@ -184,11 +228,20 @@
 
   <div class="grid" id="grid"></div>
 
+  <div class="lightbox" id="lightbox" onclick="if(event.target===this) closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <div class="lightbox-inner">
+      <img id="lightboxImg" src="" alt="">
+      <div class="lightbox-cap" id="lightboxCap"></div>
+    </div>
+  </div>
+
   <footer>
     <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气 / 模型积雪深度 / 过去及未来 72h 降雪</b> 来自 Open-Meteo 天气模型 API,由浏览器直接拉取。
     <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo 的缆车(及 Thredbo 雪道)开放状态</b> 由一个自建的 Cloudflare Worker 实时抓取各雪场官方状态页(绕过浏览器 CORS 限制),每 5 分钟缓存一次。
     <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn</b> 暂无结构化状态页,缆车状态请点卡片里的"见官方页面"链接查看。
-    <b>摄像头</b> 没有可靠的公开直链,做成了跳转到各雪场官方摄像头页面的按钮。<br>
+    <b>摄像头</b>：四个雪场官网都有可直接内嵌的静态图直链(每次打开/刷新会重新拉取一次快照,不是视频流),做成了缩略图网格点击放大。<b>直播</b>：Perisher(2路)、Thredbo(5路,YouTube)、Selwyn(1路,Twitch)官网自己也挂了真正的直播流,做成了点击展开、再点单个才播放的卡片(避免一次性加载太多视频);Charlotte Pass 官网没有直播,只有静态快照。同时保留跳转到官方摄像头页面的按钮作为兜底。
+    <b>⚠️ 直播打不开(YouTube Error 153 / Twitch 报错)：</b>这个页面必须用 http(s) 方式访问才能播直播 —— 双击 html 文件直接打开(file:// 协议)会被 YouTube/Twitch 的防盗链机制拒绝,和域名无关,是它们不认"空来源"。本地看用 <code>python3 -m http.server</code> 之类起个本地服务器,或者直接用部署后的网址。摄像头快照图和天气不受影响,双击打开也能看。<br>
     <b>下一步可加：</b>路况/封路提醒(Snowy Mountains Hwy)、票价对比、初中高级道占比、儿童课程信息。
   </footer>
 
@@ -202,6 +255,25 @@ const resorts = [
     lat: -36.40, lon: 148.41,
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
+    camBase: "https://www.perisher.com.au/images/snowcams/",
+    cams: [
+      { name: "Front Valley", file: "Xfront.jpg" },
+      { name: "Village Eight", file: "Xv8.jpg" },
+      { name: "Happy Valley", file: "Xhappy.jpg" },
+      { name: "Mt Kosciuszko", file: "Xkosci.jpg" },
+      { name: "Centre Valley", file: "Xcv.jpg" },
+      { name: "Blue Cow Summit", file: "Xsummit.jpg" },
+      { name: "Top of Freedom", file: "Xcowt.jpg" },
+      { name: "Smiggin Holes", file: "Xsmiggin.jpg" },
+      { name: "Guthega", file: "Xguthegamain.jpg" },
+      { name: "Blue Cow", file: "Xbluecow.jpg" },
+      { name: "Excelerator", file: "Xexcelerator.jpg" },
+      { name: "Mt Perisher", file: "Xmtp.jpg" }
+    ],
+    liveCams: [
+      { name: "Snow Stake", type: "youtube", id: "e2KcvL0E-2Y" },
+      { name: "Blue Cow Live", type: "youtube", id: "yr09mo1sbq0" }
+    ],
     liftKey: "perisher", // live lift status via Worker (see /worker/lift-status.js)
     tags: ["最大雪场", "适合初中级+家庭", "地形广"]
   },
@@ -211,6 +283,24 @@ const resorts = [
     lat: -36.50, lon: 148.30,
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
+    camBase: "https://thredbo-services-prod-s3-sftp-server-public.s3.ap-southeast-2.amazonaws.com/webcams/",
+    cams: [
+      { name: "Cruiser Area", file: "Cruiser01.jpg" },
+      { name: "High Noon", file: "Highnoon01.jpg" },
+      { name: "Alpine Coaster", file: "Coaster01.jpg" },
+      { name: "Kosciuszko Walking Track", file: "EaglesNest02.jpg" },
+      { name: "Central Spur", file: "EaglesNest01.jpg" },
+      { name: "Basin T-Bar", file: "Basin01.jpg" },
+      { name: "Friday Flat", file: "FridayFlat01.jpg" },
+      { name: "Mid-Mountain", file: "SuperTrail02.jpg" }
+    ],
+    liveCams: [
+      { name: "Cruiser Area", type: "youtube", id: "XH3-aW11PFM" },
+      { name: "High Noon", type: "youtube", id: "K2SVD_DPrQk" },
+      { name: "Alpine Coaster", type: "youtube", id: "o8PceocW2xQ" },
+      { name: "Basin T-Bar", type: "youtube", id: "wutozP4F-Z0" },
+      { name: "Friday Flat", type: "youtube", id: "Xt_KjaeGcGo" }
+    ],
     liftKey: "thredbo", // live lift + trail status via Worker
     tags: ["落差最大", "适合中高级", "村落氛围好"]
   },
@@ -220,6 +310,13 @@ const resorts = [
     lat: -36.43, lon: 148.33,
     sourceUrl: "https://charlottepass.com.au/on-mountain/",
     camUrl: "https://charlottepass.com.au/on-mountain/",
+    camBase: "https://charlottepass.com.au/charlottepass/webcam/",
+    cams: [
+      { name: "Kosi Carpet & Basin Poma", file: "Chairlift/current.jpg" },
+      { name: "Pulpit T-Bar", file: "timber/current.jpg" },
+      { name: "Mountain Range & Top of the World", file: "guthries/current.jpg" },
+      { name: "Kosciuszko Triple Chair", file: "lucylodge/current.jpg" }
+    ],
     tags: ["最高海拔", "人最少", "需接驳/雪地摩托"]
   },
   {
@@ -228,6 +325,15 @@ const resorts = [
     lat: -35.906, lon: 148.4495,
     sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
     camUrl: "https://selwynsnow.com.au/snow-and-weather/",
+    camBase: "https://selwynsnow.com.au/cams/",
+    cams: [
+      { name: "Toboggan Park", file: "ROC/current.jpg" },
+      { name: "New Chum Chair", file: "NCC/current.jpg" },
+      { name: "Township Triple Chair", file: "TSC/current.jpg" }
+    ],
+    liveCams: [
+      { name: "Selwyn 直播", type: "twitch", channel: "selwynsnow" }
+    ],
     tags: ["离悉尼/堪培拉最近", "适合初级+家庭", "性价比高"]
   }
 ];
@@ -241,6 +347,8 @@ const liftProxyEnabled = !LIFT_PROXY_BASE.includes("REPLACE-WITH-YOUR-WORKER");
 
 // live weather cache, filled at runtime
 const liveCache = {};
+// cache-busting timestamp for snow cam thumbnails, bumped on refresh
+let camTs = Date.now();
 // live lift status cache (via Cloudflare Worker proxy), filled at runtime
 const liveLiftCache = {};
 
@@ -417,6 +525,73 @@ function liftSectionHTML(r){
     <div class="stats"><div class="stat">${msg}</div></div>`;
 }
 
+function camGridHTML(r){
+  if(!r.cams || !r.cams.length) return "";
+  const ts = camTs;
+  return `
+    <div class="cam-grid">
+      ${r.cams.map((c, i) => `
+        <div class="cam-thumb" onclick="openLightbox('${r.id}', ${i})">
+          <img src="${r.camBase}${c.file}?ts=${ts}" alt="${c.name}" loading="lazy">
+          <div class="cam-lbl">${c.name}</div>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
+function openLightbox(resortId, i){
+  const r = resorts.find(x => x.id === resortId);
+  const c = r.cams[i];
+  document.getElementById("lightboxImg").src = `${r.camBase}${c.file}?ts=${Date.now()}`;
+  document.getElementById("lightboxCap").textContent = `${r.name} · ${c.name}`;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox(){
+  document.getElementById("lightbox").classList.remove("open");
+}
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape") closeLightbox();
+});
+
+function liveCamEmbedUrl(c){
+  if(c.type === "youtube") return `https://www.youtube.com/embed/${c.id}?autoplay=1&mute=1`;
+  if(c.type === "twitch"){
+    const parent = location.hostname || "localhost"; // Twitch rejects an empty parent (e.g. file:// pages)
+    return `https://player.twitch.tv/?channel=${c.channel}&parent=${parent}&muted=true&autoplay=true`;
+  }
+  return "";
+}
+function liveGridHTML(r){
+  if(!r.liveCams || !r.liveCams.length) return "";
+  return `
+    <div class="section-lbl">
+      <span><span class="dot live"></span>直播 · ${r.liveCams.length} 路</span>
+      <button class="edit-link" onclick="toggleLiveGrid('${r.id}')" id="live-toggle-${r.id}">展开 ▾</button>
+    </div>
+    <div class="live-grid" id="live-grid-${r.id}">
+      ${r.liveCams.map((c, i) => `
+        <div class="live-tile" id="live-tile-${r.id}-${i}">
+          <button class="live-play" onclick="playLiveCam('${r.id}', ${i})">
+            <span class="play-icon">▶</span>
+            <span class="live-lbl">${c.name}</span>
+          </button>
+        </div>
+      `).join("")}
+    </div>`;
+}
+function toggleLiveGrid(id){
+  const grid = document.getElementById(`live-grid-${id}`);
+  const btn = document.getElementById(`live-toggle-${id}`);
+  const open = grid.classList.toggle("open");
+  btn.textContent = open ? "收起 ▴" : "展开 ▾";
+}
+function playLiveCam(resortId, i){
+  const r = resorts.find(x => x.id === resortId);
+  const c = r.liveCams[i];
+  const el = document.getElementById(`live-tile-${resortId}-${i}`);
+  el.innerHTML = `<iframe src="${liveCamEmbedUrl(c)}" allow="autoplay; fullscreen" allowfullscreen title="${c.name}"></iframe>`;
+}
+
 function cardHTML(r){
   return `
   <div class="card" data-id="${r.id}">
@@ -430,8 +605,11 @@ function cardHTML(r){
       ${liveBlockHTML(r)}
     </div>
 
-    <div class="section-lbl"><span><span class="dot manual"></span>摄像头</span></div>
-    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:0; margin-bottom:4px;">📷 打开 ${r.name} 官方实时摄像头页面 →</a>
+    ${liveGridHTML(r)}
+
+    <div class="section-lbl"><span><span class="dot live"></span>摄像头${r.cams ? ` · ${r.cams.length} 个机位` : ""}</span></div>
+    ${camGridHTML(r)}
+    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">📷 打开 ${r.name} 官方实时摄像头页面 →</a>
 
     <div class="tag-row">${r.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
     <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ 查看官方雪况页面</a>
@@ -493,6 +671,7 @@ async function retryLifts(id){
 
 async function loadAllLive(){
   document.getElementById("fetchTime").textContent = "天气加载中…";
+  camTs = Date.now();
   await Promise.all(resorts.map(async (r) => {
     try{
       liveCache[r.id] = await fetchLive(r);
