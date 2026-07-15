@@ -277,6 +277,7 @@ const resorts = [
     lat: -36.40, lon: 148.41,
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
+    trailMapUrl: "https://www.perisher.com.au/plan-your-trip/new-to-perisher/trail-maps",
     camBase: "https://www.perisher.com.au/images/snowcams/",
     cams: [
       { name: "Front Valley", file: "Xfront.jpg" },
@@ -305,6 +306,7 @@ const resorts = [
     lat: -36.50, lon: 148.30,
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
+    trailMapUrl: "https://www.thredbo.com.au/the-mountain/mountain-map/",
     camBase: "https://thredbo-services-prod-s3-sftp-server-public.s3.ap-southeast-2.amazonaws.com/webcams/",
     cams: [
       { name: "Cruiser Area", file: "Cruiser01.jpg" },
@@ -332,6 +334,7 @@ const resorts = [
     lat: -36.43, lon: 148.33,
     sourceUrl: "https://charlottepass.com.au/on-mountain/",
     camUrl: "https://charlottepass.com.au/on-mountain/",
+    trailMapUrl: "https://charlottepass.com.au/wp-content/uploads/2025/04/CPSR-Trail-Map-2025-scaled.jpg",
     camBase: "https://charlottepass.com.au/charlottepass/webcam/",
     cams: [
       { name: "Kosi Carpet & Basin Poma", file: "Chairlift/current.jpg" },
@@ -347,6 +350,7 @@ const resorts = [
     lat: -35.906, lon: 148.4495,
     sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
     camUrl: "https://selwynsnow.com.au/snow-and-weather/",
+    trailMapUrl: "https://selwynsnow.com.au/wp-content/uploads/2025/05/SSR-Trail-Map-2025-scaled.jpg",
     camBase: "https://selwynsnow.com.au/cams/",
     cams: [
       { name: "Toboggan Park", file: "ROC/current.jpg" },
@@ -687,7 +691,10 @@ function cardHTML(r){
     <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">📷 打开 ${r.name} 官方实时摄像头页面 →</a>
 
     <div class="tag-row">${r.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
-    <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ 查看官方雪况页面</a>
+    <div>
+      <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ 查看官方雪况页面</a>
+      ${r.trailMapUrl ? `<a class="src-link" href="${r.trailMapUrl}" target="_blank" rel="noopener" style="margin-left:14px;">🗺️ 雪道地图 →</a>` : ""}
+    </div>
   </div>`;
 }
 
