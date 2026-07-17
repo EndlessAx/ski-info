@@ -77,6 +77,15 @@
     background: var(--glow); border-color: var(--glow); color: #1a0e06; font-weight: 600;
   }
 
+  .region-block{ margin-bottom: 36px; }
+  .region-block:last-child{ margin-bottom: 0; }
+  .region-hd{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .region-label{ font-family:'Oswald', sans-serif; font-weight:600; font-size:15px; letter-spacing:.03em; text-transform:uppercase; color: var(--ice-dim); }
+  .region-origin{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--slate); }
+
   .grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
   @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
 
@@ -231,11 +240,11 @@
 
   <header>
     <div>
-      <div class="eyebrow">Snowy Mountains · NSW</div>
-      <h1>雪场概览 <span>/ NSW Ski Resorts</span></h1>
+      <div class="eyebrow">NSW · Snowy Mountains / VIC · Victorian Alps</div>
+      <h1>雪场概览 <span>/ AU Ski Resorts</span></h1>
     </div>
     <div class="updated">
-      悉尼出发 · <span id="fetchTime">天气加载中…</span><br>
+      <span id="fetchTime">天气加载中…</span><br>
       <button class="refresh-all" id="refreshAll">↻ 刷新实时天气</button>
     </div>
   </header>
@@ -247,7 +256,7 @@
     <button data-sort="drive">按车程</button>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <div id="regionsWrap"></div>
 
   <div class="lightbox" id="lightbox" onclick="if(event.target===this) closeLightbox()">
     <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
@@ -261,10 +270,10 @@
   <footer>
     <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气 / 模型积雪深度 / 过去及未来 72h 降雪</b> 来自 Open-Meteo 天气模型 API,由浏览器直接拉取。
     <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo 的缆车(及 Thredbo 雪道)开放状态</b> 由一个自建的 Cloudflare Worker 实时抓取各雪场官方状态页(绕过浏览器 CORS 限制),每 5 分钟缓存一次。
-    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn</b> 暂无结构化状态页,缆车状态请点卡片里的"见官方页面"链接查看。
-    <b>摄像头</b>：四个雪场官网都有可直接内嵌的静态图直链(每次打开/刷新会重新拉取一次快照,不是视频流),做成了缩略图网格点击放大。<b>直播</b>：Perisher(2路)、Thredbo(5路,YouTube)、Selwyn(1路,Twitch)官网自己也挂了真正的直播流,做成了点击展开、再点单个才播放的卡片(避免一次性加载太多视频);Charlotte Pass 官网没有直播,只有静态快照。同时保留跳转到官方摄像头页面的按钮作为兜底。
+    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn / 全部 5 个维州雪场</b> 暂无结构化状态页(自建 Worker 目前只支持 Perisher/Thredbo),缆车状态请点卡片里的"见官方页面"链接查看。
+    <b>摄像头</b>：九个雪场官网都有可直接内嵌的静态图直链(每次打开/刷新会重新拉取一次快照,不是视频流),做成了缩略图网格点击放大;Falls Creek 官网用的是 Panomax 360° 全景摄像头,只有一路。<b>直播</b>：Perisher(2路)、Thredbo(5路,YouTube)、Selwyn(1路,Twitch)官网自己也挂了真正的直播流,做成了点击展开、再点单个才播放的卡片(避免一次性加载太多视频);其余雪场官网没有直播,只有静态快照。同时保留跳转到官方摄像头页面的按钮作为兜底。
     <b>⚠️ 直播打不开(YouTube Error 153 / Twitch 报错)：</b>这个页面必须用 http(s) 方式访问才能播直播 —— 双击 html 文件直接打开(file:// 协议)会被 YouTube/Twitch 的防盗链机制拒绝,和域名无关,是它们不认"空来源"。本地看用 <code>python3 -m http.server</code> 之类起个本地服务器,或者直接用部署后的网址。摄像头快照图和天气不受影响,双击打开也能看。<br>
-    <b>下一步可加：</b>路况/封路提醒(Snowy Mountains Hwy)、票价对比、初中高级道占比、儿童课程信息。
+    <b>下一步可加：</b>路况/封路提醒、票价对比、初中高级道占比、儿童课程信息、维州雪场的实时缆车状态(需要给 Worker 加对应的抓取规则)。
   </footer>
 
 </div>
@@ -273,7 +282,7 @@
 const resorts = [
   {
     id: "perisher", name: "Perisher", cn: "佩里舍",
-    drive: "约 6h",
+    region: "nsw", drive: "约 6h",
     lat: -36.40, lon: 148.41,
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
@@ -302,7 +311,7 @@ const resorts = [
   },
   {
     id: "thredbo", name: "Thredbo", cn: "斯瑞德博",
-    drive: "约 6h",
+    region: "nsw", drive: "约 6h",
     lat: -36.50, lon: 148.30,
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
@@ -330,7 +339,7 @@ const resorts = [
   },
   {
     id: "charlottepass", name: "Charlotte Pass", cn: "夏洛特山口",
-    drive: "约 6.5h + 雪地车接驳",
+    region: "nsw", drive: "约 6.5h + 雪地车接驳",
     lat: -36.43, lon: 148.33,
     sourceUrl: "https://charlottepass.com.au/on-mountain/",
     camUrl: "https://charlottepass.com.au/on-mountain/",
@@ -346,7 +355,7 @@ const resorts = [
   },
   {
     id: "selwyn", name: "Selwyn", cn: "塞尔温",
-    drive: "约 6h",
+    region: "nsw", drive: "约 6h",
     lat: -35.906, lon: 148.4495,
     sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
     camUrl: "https://selwynsnow.com.au/snow-and-weather/",
@@ -361,6 +370,89 @@ const resorts = [
       { name: "Selwyn 直播", type: "twitch", channel: "selwynsnow" }
     ],
     tags: ["离悉尼/堪培拉最近", "适合初级+家庭", "性价比高"]
+  },
+  {
+    id: "buller", name: "Mount Buller", cn: "巴勒山",
+    region: "vic", drive: "约 3.25h",
+    lat: -37.1464, lon: 146.4503,
+    sourceUrl: "https://www.mtbuller.com.au/winter/snow-weather/snow-report",
+    camUrl: "https://www.mtbuller.com.au/winter/weather/web-cams",
+    trailMapUrl: "https://www.mtbuller.com.au/hubfs/2026_mountain_map_web.pdf",
+    camBase: "https://mtbuller.idnetwork.com.au/cams-mt-buller/",
+    cams: [
+      { name: "Burnt Hut", file: "BurntHutCam.jpg" },
+      { name: "Little Buller Spur", file: "LBSCam.jpg" },
+      { name: "Village", file: "VillageCam.jpg" },
+      { name: "Village Toboggan Park", file: "VillageTobogganCam.jpg" }
+    ],
+    tags: ["维州最大雪场", "适合各级别", "村落设施齐全"]
+  },
+  {
+    id: "hotham", name: "Mount Hotham", cn: "霍瑟姆山",
+    region: "vic", drive: "约 4.5h",
+    lat: -36.9754, lon: 147.1276,
+    sourceUrl: "https://www.hotham.com.au/mountain/conditions/snow-reports",
+    camUrl: "https://www.hotham.com.au/mountain/conditions/snow-cams",
+    trailMapUrl: "https://www.mthotham.com.au/Portals/0/Hotham/Images/On-Mountain/Getting-About/Trail-Map/h_24_Trail_Map_Base.pdf",
+    camBase: "https://www.mthotham.com.au/Portals/0/webcams/",
+    cams: [
+      { name: "Big D", file: "Big_D.jpg?format=webp" },
+      { name: "Hotham Heights", file: "hc_basin.jpg?format=webp" },
+      { name: "Slalom Gully", file: "SlalomGully.jpg?format=webp" },
+      { name: "Snake Gully", file: "SnakeGully.jpg?format=webp" },
+      { name: "Upper Imagine", file: "RH_UpperImagine.jpg?format=webp" },
+      { name: "Summit Trainer", file: "SummitTrainer.jpg?format=webp" },
+      { name: "Pup's & Sun Run", file: "hc_sunrun.jpg?format=webp" },
+      { name: "Skating Rink", file: "RH_SkatingRink.jpg?format=webp" },
+      { name: "Gotcha", file: "RH_Gotcha.jpg?format=webp" },
+      { name: "Golden Point", file: "GoldenPoint.jpg?format=webp" },
+      { name: "Whiskey Flat", file: "WFwest.jpg?format=webp" }
+    ],
+    tags: ["维州海拔最高", "适合中高级", "地形复杂多变"]
+  },
+  {
+    id: "fallscreek", name: "Falls Creek", cn: "瀑布溪",
+    region: "vic", drive: "约 4.5h",
+    lat: -36.87, lon: 147.27,
+    sourceUrl: "https://www.fallscreek.com.au/snowreport/",
+    camUrl: "https://skifalls.panomax.com/drovers",
+    trailMapUrl: "https://www.fallscreek.com.au/wp-content/uploads/sites/67/2022/10/16695_FC_FA_OnMountain_TrailMaps_LEGEND_A3_DIGITAL_LR_Mar22.jpg",
+    camBase: "https://panodata21.panomax.com/cams/1832/preview_og.jpg",
+    cams: [
+      { name: "Drovers 全景", file: "" }
+    ],
+    tags: ["雪道相连广", "适合初中级+家庭", "越野滑雪出名"]
+  },
+  {
+    id: "bawbaw", name: "Mount Baw Baw", cn: "巴奥巴奥山",
+    region: "vic", drive: "约 2.75h",
+    lat: -37.8395, lon: 146.2760,
+    sourceUrl: "https://www.mountbawbaw.com.au/reports/snow-weather/",
+    camUrl: "https://www.mountbawbaw.com.au/reports/webcams/",
+    trailMapUrl: "https://mountbawbaw.com.au/wp-content/uploads/2022/02/Baw-BAw-resort-map-2026-2-1-1-scaled.jpg",
+    camBase: "https://www.ralo.tech/arvftp/baw/",
+    cams: [
+      { name: "Toboggan Park", file: "camera1.jpg" },
+      { name: "Hut Roll", file: "camera2.jpg" },
+      { name: "The Bowl", file: "camera3.jpg" },
+      { name: "Mid Summit", file: "camera4.jpg" },
+      { name: "Baw Baw Village", file: "camera5.jpg" },
+      { name: "Tank Hill", file: "camera6.jpg" }
+    ],
+    tags: ["离墨尔本最近", "适合初级+家庭", "规模较小"]
+  },
+  {
+    id: "dinnerplain", name: "Dinner Plain", cn: "丁纳平原",
+    region: "vic", drive: "约 4.75h",
+    lat: -37.03, lon: 147.279,
+    sourceUrl: "https://www.visitdinnerplain.com.au/snow-report/",
+    camUrl: "https://www.visitdinnerplain.com.au/snow-cam/",
+    trailMapUrl: "https://www.visitdinnerplain.com.au/wp-content/uploads/sites/45/Dinner-Plain-Village-Map-Directory_2025-WEB.pdf",
+    camBase: "https://www.visitdinnerplain.com.au/wp-content/uploads/",
+    cams: [
+      { name: "Cobungra Platter / Scrubbers End", file: "cam-dp-1.jpg" }
+    ],
+    tags: ["与 Hotham 相连", "越野滑雪/雪橇为主", "度假村氛围"]
   }
 ];
 
@@ -700,8 +792,12 @@ function cardHTML(r){
 
 let currentSort = "default";
 
-function render(){
-  let list = [...resorts];
+const regions = [
+  { key: "nsw", label: "新南威尔士 · Snowy Mountains", origin: "🚗 悉尼出发" },
+  { key: "vic", label: "维多利亚州 · Victorian Alps", origin: "🚗 墨尔本出发" }
+];
+
+function sortList(list){
   if(currentSort === "lifts") list.sort((a,b) => {
     const ca = getLiftCounts(a), cb = getLiftCounts(b);
     const ra = ca.live ? ca.open/ca.total : -1;   // resorts without live data sort last
@@ -719,7 +815,19 @@ function render(){
     const tb = parseFloat(b.drive.match(/[\d.]+/)[0]);
     return ta - tb;
   });
-  document.getElementById("grid").innerHTML = list.map(cardHTML).join("");
+  return list;
+}
+
+function render(){
+  document.getElementById("regionsWrap").innerHTML = regions.map(rg => {
+    const list = sortList(resorts.filter(r => r.region === rg.key));
+    if(!list.length) return "";
+    return `
+      <div class="region-block">
+        <div class="region-hd"><span class="region-label">${rg.label}</span><span class="region-origin">${rg.origin}</span></div>
+        <div class="grid">${list.map(cardHTML).join("")}</div>
+      </div>`;
+  }).join("");
 }
 
 function toggleLiftDetail(id){
