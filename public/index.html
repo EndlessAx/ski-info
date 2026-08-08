@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>雪场概览 · NSW Snowy Mountains</title>
+<title>Resort Overview · AU Ski Resorts</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -241,19 +241,19 @@
   <header>
     <div>
       <div class="eyebrow">NSW · Snowy Mountains / VIC · Victorian Alps</div>
-      <h1>雪场概览 <span>/ AU Ski Resorts</span></h1>
+      <h1>Resort Overview <span>/ AU Ski Resorts</span></h1>
     </div>
     <div class="updated">
-      <span id="fetchTime">天气加载中…</span><br>
-      <button class="refresh-all" id="refreshAll">↻ 刷新实时天气</button>
+      <span id="fetchTime">Loading weather…</span><br>
+      <button class="refresh-all" id="refreshAll">↻ Refresh weather</button>
     </div>
   </header>
 
   <div class="controls" id="controls">
-    <button class="active" data-sort="default">默认</button>
-    <button data-sort="lifts">按开放缆车比例</button>
-    <button data-sort="snow">按积雪深度</button>
-    <button data-sort="drive">按车程</button>
+    <button class="active" data-sort="default">Default</button>
+    <button data-sort="lifts">By lifts open</button>
+    <button data-sort="snow">By snow depth</button>
+    <button data-sort="drive">By drive time</button>
   </div>
 
   <div id="regionsWrap"></div>
@@ -268,12 +268,12 @@
   </div>
 
   <footer>
-    <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气 / 模型积雪深度 / 过去及未来 72h 降雪</b> 来自 Open-Meteo 天气模型 API,由浏览器直接拉取。
-    <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo 的缆车(及 Thredbo 雪道)开放状态</b> 由一个自建的 Cloudflare Worker 实时抓取各雪场官方状态页(绕过浏览器 CORS 限制),每 5 分钟缓存一次。
-    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn / 全部 5 个维州雪场</b> 暂无结构化状态页(自建 Worker 目前只支持 Perisher/Thredbo),缆车状态请点卡片里的"见官方页面"链接查看。
-    <b>摄像头</b>：九个雪场官网都有可直接内嵌的静态图直链(每次打开/刷新会重新拉取一次快照,不是视频流),做成了缩略图网格点击放大;Falls Creek 官网用的是 Panomax 360° 全景摄像头,只有一路。<b>直播</b>：Perisher(2路)、Thredbo(5路,YouTube)、Selwyn(1路,Twitch)官网自己也挂了真正的直播流,做成了点击展开、再点单个才播放的卡片(避免一次性加载太多视频);其余雪场官网没有直播,只有静态快照。同时保留跳转到官方摄像头页面的按钮作为兜底。
-    <b>⚠️ 直播打不开(YouTube Error 153 / Twitch 报错)：</b>这个页面必须用 http(s) 方式访问才能播直播 —— 双击 html 文件直接打开(file:// 协议)会被 YouTube/Twitch 的防盗链机制拒绝,和域名无关,是它们不认"空来源"。本地看用 <code>python3 -m http.server</code> 之类起个本地服务器,或者直接用部署后的网址。摄像头快照图和天气不受影响,双击打开也能看。<br>
-    <b>下一步可加：</b>路况/封路提醒、票价对比、初中高级道占比、儿童课程信息、维州雪场的实时缆车状态(需要给 Worker 加对应的抓取规则)。
+    <b>Data sources:</b><span class="dot live" style="display:inline-block;"></span> <b>Live weather / model snow depth / past &amp; forecast 72h snowfall</b> come from the Open-Meteo weather model API, fetched directly by your browser.
+    <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo lift (and Thredbo trail) status</b> is scraped live from each resort's official status page by a self-hosted Cloudflare Worker (to get around browser CORS restrictions), cached for 5 minutes.
+    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn / all 5 Victorian resorts</b> don't have a structured status page yet (the Worker currently only supports Perisher/Thredbo) — check lift status via the "official page" link on each card.
+    <b>Webcams:</b> all nine resorts have direct, embeddable static image links from their official sites (each open/refresh re-fetches a fresh snapshot, not a video stream), shown as a click-to-enlarge thumbnail grid; Falls Creek's official site uses a single Panomax 360° camera instead. <b>Live streams:</b> Perisher (2 feeds), Thredbo (5 feeds, YouTube), and Selwyn (1 feed, Twitch) have real live streams on their official sites, shown as click-to-expand-then-click-to-play tiles (to avoid loading too many videos at once); the other resorts' official sites have no live stream, only static snapshots. A link to the official webcam page is kept as a fallback either way.
+    <b>⚠️ Live stream won't load (YouTube Error 153 / Twitch error):</b> this page needs to be served over http(s) to play live streams — double-clicking the html file to open it directly (the file:// protocol) gets rejected by YouTube/Twitch's anti-embedding checks, regardless of domain, because they don't accept an empty origin. For local viewing, spin up a local server (e.g. <code>python3 -m http.server</code>) or just use the deployed URL. Webcam snapshots and weather aren't affected and still work when opened directly.<br>
+    <b>Possible next steps:</b> road/closure alerts, lift ticket price comparison, beginner/intermediate/advanced trail split, kids' lesson info, live lift status for the Victorian resorts (needs matching scrape rules added to the Worker).
   </footer>
 
 </div>
@@ -281,8 +281,8 @@
 <script>
 const resorts = [
   {
-    id: "perisher", name: "Perisher", cn: "佩里舍",
-    region: "nsw", drive: "约 6h",
+    id: "perisher", name: "Perisher",
+    region: "nsw", drive: "~6h",
     lat: -36.40, lon: 148.41,
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
@@ -307,11 +307,11 @@ const resorts = [
       { name: "Blue Cow Live", type: "youtube", id: "yr09mo1sbq0" }
     ],
     liftKey: "perisher", // live lift status via Worker (see /worker/lift-status.js)
-    tags: ["最大雪场", "适合初中级+家庭", "地形广"]
+    tags: ["Largest resort", "Great for beginners+families", "Wide terrain"]
   },
   {
-    id: "thredbo", name: "Thredbo", cn: "斯瑞德博",
-    region: "nsw", drive: "约 6h",
+    id: "thredbo", name: "Thredbo",
+    region: "nsw", drive: "~6h",
     lat: -36.50, lon: 148.30,
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
@@ -335,11 +335,11 @@ const resorts = [
       { name: "Friday Flat", type: "youtube", id: "Xt_KjaeGcGo" }
     ],
     liftKey: "thredbo", // live lift + trail status via Worker
-    tags: ["落差最大", "适合中高级", "村落氛围好"]
+    tags: ["Longest vertical drop", "Great for intermediate+advanced", "Lively village"]
   },
   {
-    id: "charlottepass", name: "Charlotte Pass", cn: "夏洛特山口",
-    region: "nsw", drive: "约 6.5h + 雪地车接驳",
+    id: "charlottepass", name: "Charlotte Pass",
+    region: "nsw", drive: "~6.5h + oversnow transport",
     lat: -36.43, lon: 148.33,
     sourceUrl: "https://charlottepass.com.au/on-mountain/",
     camUrl: "https://charlottepass.com.au/on-mountain/",
@@ -351,11 +351,11 @@ const resorts = [
       { name: "Mountain Range & Top of the World", file: "guthries/current.jpg" },
       { name: "Kosciuszko Triple Chair", file: "lucylodge/current.jpg" }
     ],
-    tags: ["最高海拔", "人最少", "需接驳/雪地摩托"]
+    tags: ["Highest elevation", "Least crowded", "Requires transport/snowmobile"]
   },
   {
-    id: "selwyn", name: "Selwyn", cn: "塞尔温",
-    region: "nsw", drive: "约 6h",
+    id: "selwyn", name: "Selwyn",
+    region: "nsw", drive: "~6h",
     lat: -35.906, lon: 148.4495,
     sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
     camUrl: "https://selwynsnow.com.au/snow-and-weather/",
@@ -367,13 +367,13 @@ const resorts = [
       { name: "Township Triple Chair", file: "TSC/current.jpg" }
     ],
     liveCams: [
-      { name: "Selwyn 直播", type: "twitch", channel: "selwynsnow" }
+      { name: "Selwyn Live", type: "twitch", channel: "selwynsnow" }
     ],
-    tags: ["离悉尼/堪培拉最近", "适合初级+家庭", "性价比高"]
+    tags: ["Closest to Sydney/Canberra", "Great for beginners+families", "Best value"]
   },
   {
-    id: "buller", name: "Mount Buller", cn: "巴勒山",
-    region: "vic", drive: "约 3.25h",
+    id: "buller", name: "Mount Buller",
+    region: "vic", drive: "~3.25h",
     lat: -37.1464, lon: 146.4503,
     sourceUrl: "https://www.mtbuller.com.au/winter/snow-weather/snow-report",
     camUrl: "https://www.mtbuller.com.au/winter/weather/web-cams",
@@ -385,11 +385,11 @@ const resorts = [
       { name: "Village", file: "VillageCam.jpg" },
       { name: "Village Toboggan Park", file: "VillageTobogganCam.jpg" }
     ],
-    tags: ["维州最大雪场", "适合各级别", "村落设施齐全"]
+    tags: ["Victoria's largest resort", "All skill levels", "Full village amenities"]
   },
   {
-    id: "hotham", name: "Mount Hotham", cn: "霍瑟姆山",
-    region: "vic", drive: "约 4.5h",
+    id: "hotham", name: "Mount Hotham",
+    region: "vic", drive: "~4.5h",
     lat: -36.9754, lon: 147.1276,
     sourceUrl: "https://www.hotham.com.au/mountain/conditions/snow-reports",
     camUrl: "https://www.hotham.com.au/mountain/conditions/snow-cams",
@@ -408,24 +408,24 @@ const resorts = [
       { name: "Golden Point", file: "GoldenPoint.jpg?format=webp" },
       { name: "Whiskey Flat", file: "WFwest.jpg?format=webp" }
     ],
-    tags: ["维州海拔最高", "适合中高级", "地形复杂多变"]
+    tags: ["Victoria's highest peak", "Great for intermediate+advanced", "Varied, complex terrain"]
   },
   {
-    id: "fallscreek", name: "Falls Creek", cn: "瀑布溪",
-    region: "vic", drive: "约 4.5h",
+    id: "fallscreek", name: "Falls Creek",
+    region: "vic", drive: "~4.5h",
     lat: -36.87, lon: 147.27,
     sourceUrl: "https://www.fallscreek.com.au/snowreport/",
     camUrl: "https://skifalls.panomax.com/drovers",
     trailMapUrl: "https://www.fallscreek.com.au/wp-content/uploads/sites/67/2022/10/16695_FC_FA_OnMountain_TrailMaps_LEGEND_A3_DIGITAL_LR_Mar22.jpg",
     camBase: "https://panodata21.panomax.com/cams/1832/preview_og.jpg",
     cams: [
-      { name: "Drovers 全景", file: "" }
+      { name: "Drovers panorama", file: "" }
     ],
-    tags: ["雪道相连广", "适合初中级+家庭", "越野滑雪出名"]
+    tags: ["Extensive linked trails", "Great for beginners+families", "Renowned for cross-country"]
   },
   {
-    id: "bawbaw", name: "Mount Baw Baw", cn: "巴奥巴奥山",
-    region: "vic", drive: "约 2.75h",
+    id: "bawbaw", name: "Mount Baw Baw",
+    region: "vic", drive: "~2.75h",
     lat: -37.8395, lon: 146.2760,
     sourceUrl: "https://www.mountbawbaw.com.au/reports/snow-weather/",
     camUrl: "https://www.mountbawbaw.com.au/reports/webcams/",
@@ -439,11 +439,11 @@ const resorts = [
       { name: "Baw Baw Village", file: "camera5.jpg" },
       { name: "Tank Hill", file: "camera6.jpg" }
     ],
-    tags: ["离墨尔本最近", "适合初级+家庭", "规模较小"]
+    tags: ["Closest to Melbourne", "Great for beginners+families", "Smaller scale"]
   },
   {
-    id: "dinnerplain", name: "Dinner Plain", cn: "丁纳平原",
-    region: "vic", drive: "约 4.75h",
+    id: "dinnerplain", name: "Dinner Plain",
+    region: "vic", drive: "~4.75h",
     lat: -37.03, lon: 147.279,
     sourceUrl: "https://www.visitdinnerplain.com.au/snow-report/",
     camUrl: "https://www.visitdinnerplain.com.au/snow-cam/",
@@ -452,7 +452,7 @@ const resorts = [
     cams: [
       { name: "Cobungra Platter / Scrubbers End", file: "cam-dp-1.jpg" }
     ],
-    tags: ["与 Hotham 相连", "越野滑雪/雪橇为主", "度假村氛围"]
+    tags: ["Connected to Hotham", "Mainly cross-country/tobogganing", "Village resort feel"]
   }
 ];
 
@@ -472,18 +472,18 @@ const liveLiftCache = {};
 
 function wmoDesc(code){
   const map = {
-    0:["☀️","晴朗"],1:["🌤️","大致晴"],2:["⛅","局部多云"],3:["☁️","阴天"],
-    45:["🌫️","雾"],48:["🌫️","雾凇"],
-    51:["🌦️","小毛雨"],53:["🌦️","毛雨"],55:["🌧️","强毛雨"],
-    56:["🌧️","冻毛雨"],57:["🌧️","强冻毛雨"],
-    61:["🌧️","小雨"],63:["🌧️","中雨"],65:["🌧️","大雨"],
-    66:["🌨️","冻雨"],67:["🌨️","强冻雨"],
-    71:["❄️","小雪"],73:["❄️","中雪"],75:["❄️","大雪"],77:["❄️","米雪"],
-    80:["🌦️","阵雨"],81:["🌦️","强阵雨"],82:["⛈️","暴阵雨"],
-    85:["🌨️","阵雪"],86:["🌨️","强阵雪"],
-    95:["⛈️","雷暴"],96:["⛈️","雷暴伴冰雹"],99:["⛈️","强雷暴伴冰雹"]
+    0:["☀️","Clear"],1:["🌤️","Mostly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
+    45:["🌫️","Fog"],48:["🌫️","Rime fog"],
+    51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],
+    56:["🌧️","Freezing drizzle"],57:["🌧️","Dense freezing drizzle"],
+    61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],
+    66:["🌨️","Freezing rain"],67:["🌨️","Heavy freezing rain"],
+    71:["❄️","Light snow"],73:["❄️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],
+    80:["🌦️","Rain showers"],81:["🌦️","Heavy rain showers"],82:["⛈️","Violent rain showers"],
+    85:["🌨️","Snow showers"],86:["🌨️","Heavy snow showers"],
+    95:["⛈️","Thunderstorm"],96:["⛈️","Thunderstorm w/ hail"],99:["⛈️","Severe thunderstorm w/ hail"]
   };
-  return map[code] || ["·","未知"];
+  return map[code] || ["·","Unknown"];
 }
 
 async function fetchLive(r){
@@ -586,33 +586,33 @@ function liveBlockHTML(r){
   const live = liveCache[r.id];
   if(live === "error"){
     return `
-      <div class="stat"><span class="k err">自动天气拉取失败</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">重试</button></span></div>
+      <div class="stat"><span class="k err">Weather fetch failed</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">Retry</button></span></div>
     `;
   }
   if(!live){
-    return `<div class="stat"><span class="k skeleton">加载实时天气…</span><span class="v">···</span></div>`;
+    return `<div class="stat"><span class="k skeleton">Loading weather…</span><span class="v">···</span></div>`;
   }
   const [icon, desc] = wmoDesc(live.code);
   return `
-    <div class="stat"><span class="k">当前天气</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
-    <div class="stat"><span class="k">风速</span><span class="v">${live.wind} km/h</span></div>
-    <div class="stat"><span class="k">模型积雪深度</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : "无数据"}</span></div>
-    <div class="stat"><span class="k">过去72h降雪</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
-    <div class="stat"><span class="k">未来72h预报降雪</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : "无数据"}</span></div>
+    <div class="stat"><span class="k">Current weather</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
+    <div class="stat"><span class="k">Wind</span><span class="v">${live.wind} km/h</span></div>
+    <div class="stat"><span class="k">Model snow depth</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : "No data"}</span></div>
+    <div class="stat"><span class="k">Snowfall (past 72h)</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : "No data"}</span></div>
+    <div class="stat"><span class="k">Forecast snowfall (next 72h)</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : "No data"}</span></div>
   `;
 }
 
-const weekdayCN = ["周日","周一","周二","周三","周四","周五","周六"];
+const weekdayEN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 function forecastRowHTML(r){
   const live = liveCache[r.id];
   if(live === "error" || !live) return "";
   if(!live.forecast7 || !live.forecast7.length) return "";
   return `
-    <div class="section-lbl"><span><span class="dot live"></span>未来 7 天预报</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>7-Day Forecast</span></div>
     <div class="forecast-row">
       ${live.forecast7.map((d, i) => {
         const [icon] = wmoDesc(d.code);
-        const dow = i === 0 ? "今天" : weekdayCN[new Date(d.date).getDay()];
+        const dow = i === 0 ? "Today" : weekdayEN[new Date(d.date).getDay()];
         return `
         <div class="forecast-day">
           <div class="fd-dow">${dow}</div>
@@ -652,25 +652,25 @@ function liftSectionHTML(r){
       ${gaugeSVG(liftPct, gaugeColor)}
       <div class="gauge-desc">
         <div class="num">${counts.open} / ${counts.total}</div>
-        <div class="lbl">缆车开放</div>
+        <div class="lbl">Lifts open</div>
       </div>
     </div>
 
     <div class="section-lbl">
-      <span><span class="dot live"></span>缆车状态 · ${r.name} 官网实时</span>
-      <button class="edit-link" onclick="toggleLiftDetail('${r.id}')">查看详情</button>
+      <span><span class="dot live"></span>Lift status · Live from ${r.name}</span>
+      <button class="edit-link" onclick="toggleLiftDetail('${r.id}')">Details</button>
     </div>
-    ${counts.trails ? `<div class="stats"><div class="stat"><span class="k">雪道开放</span><span class="v">${counts.trails.open} / ${counts.trails.total} 条</span></div></div>` : ""}
+    ${counts.trails ? `<div class="stats"><div class="stat"><span class="k">Trails open</span><span class="v">${counts.trails.open} / ${counts.trails.total}</span></div></div>` : ""}
     ${liftAreasHTML(r)}`;
   }
   // Show "loading" only while a proxy fetch is genuinely in flight; otherwise
   // (no liftKey, proxy disabled, or fetch failed) link out to the official page.
   const loading = liftProxyEnabled && r.liftKey && liveLiftCache[r.id] === undefined;
   const msg = loading
-    ? `<span class="k skeleton">加载缆车状态…</span>`
-    : `<span class="k">缆车实时状态</span><span class="v"><a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener" style="margin:0;border:none;">见官方页面 →</a></span>`;
+    ? `<span class="k skeleton">Loading lift status…</span>`
+    : `<span class="k">Live lift status</span><span class="v"><a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener" style="margin:0;border:none;">See official page →</a></span>`;
   return `
-    <div class="section-lbl"><span><span class="dot manual"></span>缆车状态</span></div>
+    <div class="section-lbl"><span><span class="dot manual"></span>Lift status</span></div>
     <div class="stats"><div class="stat">${msg}</div></div>`;
 }
 
@@ -728,8 +728,8 @@ function liveGridHTML(r){
   if(!r.liveCams || !r.liveCams.length) return "";
   return `
     <div class="section-lbl">
-      <span><span class="dot live"></span>直播 · ${r.liveCams.length} 路</span>
-      <button class="edit-link" onclick="toggleLiveGrid('${r.id}')" id="live-toggle-${r.id}">展开 ▾</button>
+      <span><span class="dot live"></span>Live · ${r.liveCams.length} feed${r.liveCams.length === 1 ? "" : "s"}</span>
+      <button class="edit-link" onclick="toggleLiveGrid('${r.id}')" id="live-toggle-${r.id}">Expand ▾</button>
     </div>
     <div class="live-grid" id="live-grid-${r.id}">
       ${r.liveCams.map((c, i) => `
@@ -746,7 +746,7 @@ function toggleLiveGrid(id){
   const grid = document.getElementById(`live-grid-${id}`);
   const btn = document.getElementById(`live-toggle-${id}`);
   const open = grid.classList.toggle("open");
-  btn.textContent = open ? "收起 ▴" : "展开 ▾";
+  btn.textContent = open ? "Collapse ▴" : "Expand ▾";
 }
 function playLiveCam(resortId, i){
   const r = resorts.find(x => x.id === resortId);
@@ -756,7 +756,7 @@ function playLiveCam(resortId, i){
   const el = document.getElementById(`live-tile-${resortId}-${i}`);
   el.innerHTML = `
     <iframe src="${url}" allow="autoplay; fullscreen" allowfullscreen title="${c.name}"></iframe>
-    <button class="live-expand" onclick="openLightboxVideo('${url}', '${caption}')" title="放大播放">⛶</button>
+    <button class="live-expand" onclick="openLightboxVideo('${url}', '${caption}')" title="Expand">⛶</button>
   `;
 }
 
@@ -764,11 +764,11 @@ function cardHTML(r){
   return `
   <div class="card" data-id="${r.id}">
     <div class="resort-name">${r.name}</div>
-    <div class="resort-meta">${r.cn} · <span class="drive-tag">🚗 ${r.drive}</span></div>
+    <div class="resort-meta"><span class="drive-tag">🚗 ${r.drive}</span></div>
 
     ${liftSectionHTML(r)}
 
-    <div class="section-lbl"><span><span class="dot live"></span>实时天气 · Open-Meteo 自动</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>Live Weather · Open-Meteo</span></div>
     <div class="stats" id="live-${r.id}">
       ${liveBlockHTML(r)}
     </div>
@@ -778,14 +778,14 @@ function cardHTML(r){
 
     ${liveGridHTML(r)}
 
-    <div class="section-lbl"><span><span class="dot live"></span>摄像头${r.cams ? ` · ${r.cams.length} 个机位` : ""}</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>Webcams${r.cams ? ` · ${r.cams.length} cam${r.cams.length === 1 ? "" : "s"}` : ""}</span></div>
     ${camGridHTML(r)}
-    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">📷 打开 ${r.name} 官方实时摄像头页面 →</a>
+    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">📷 Open ${r.name}'s official webcam page →</a>
 
     <div class="tag-row">${r.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
     <div>
-      <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ 查看官方雪况页面</a>
-      ${r.trailMapUrl ? `<a class="src-link" href="${r.trailMapUrl}" target="_blank" rel="noopener" style="margin-left:14px;">🗺️ 雪道地图 →</a>` : ""}
+      <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ Official snow report</a>
+      ${r.trailMapUrl ? `<a class="src-link" href="${r.trailMapUrl}" target="_blank" rel="noopener" style="margin-left:14px;">🗺️ Trail map →</a>` : ""}
     </div>
   </div>`;
 }
@@ -793,8 +793,8 @@ function cardHTML(r){
 let currentSort = "default";
 
 const regions = [
-  { key: "nsw", label: "新南威尔士 · Snowy Mountains", origin: "🚗 悉尼出发" },
-  { key: "vic", label: "维多利亚州 · Victorian Alps", origin: "🚗 墨尔本出发" }
+  { key: "nsw", label: "New South Wales · Snowy Mountains", origin: "🚗 From Sydney" },
+  { key: "vic", label: "Victoria · Victorian Alps", origin: "🚗 From Melbourne" }
 ];
 
 function sortList(list){
@@ -861,7 +861,7 @@ async function retryLifts(id){
 }
 
 async function loadAllLive(){
-  document.getElementById("fetchTime").textContent = "天气加载中…";
+  document.getElementById("fetchTime").textContent = "Loading weather…";
   camTs = Date.now();
   await Promise.all(resorts.map(async (r) => {
     try{
@@ -884,7 +884,7 @@ async function loadAllLive(){
   }));
   render();
   const now = new Date();
-  document.getElementById("fetchTime").textContent = "天气更新于 " + now.toLocaleTimeString("zh-CN", {hour:'2-digit', minute:'2-digit'});
+  document.getElementById("fetchTime").textContent = "Weather updated " + now.toLocaleTimeString("en-AU", {hour:'2-digit', minute:'2-digit'});
 }
 
 document.getElementById("controls").addEventListener("click", (e) => {
