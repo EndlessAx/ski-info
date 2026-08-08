@@ -63,6 +63,12 @@
     border-radius:100px; padding:6px 14px; cursor:pointer; margin-top:8px;
   }
   .refresh-all:hover{ border-color: var(--cold); }
+  .lang-toggle{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    background: var(--surface); color: var(--glow); border:1px solid var(--line);
+    border-radius:100px; padding:6px 14px; cursor:pointer;
+  }
+  .lang-toggle:hover{ border-color: var(--glow); }
 
   .controls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 28px; }
   .controls button{
@@ -240,20 +246,21 @@
 
   <header>
     <div>
-      <div class="eyebrow">NSW · Snowy Mountains / VIC · Victorian Alps</div>
-      <h1>Resort Overview <span>/ AU Ski Resorts</span></h1>
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="h1title"></h1>
     </div>
     <div class="updated">
-      <span id="fetchTime">Loading weather…</span><br>
-      <button class="refresh-all" id="refreshAll">↻ Refresh weather</button>
+      <button class="lang-toggle" id="langToggle">中文</button><br>
+      <span id="fetchTime"></span><br>
+      <button class="refresh-all" id="refreshAll"></button>
     </div>
   </header>
 
   <div class="controls" id="controls">
-    <button class="active" data-sort="default">Default</button>
-    <button data-sort="lifts">By lifts open</button>
-    <button data-sort="snow">By snow depth</button>
-    <button data-sort="drive">By drive time</button>
+    <button class="active" data-sort="default"></button>
+    <button data-sort="lifts"></button>
+    <button data-sort="snow"></button>
+    <button data-sort="drive"></button>
   </div>
 
   <div id="regionsWrap"></div>
@@ -267,22 +274,15 @@
     </div>
   </div>
 
-  <footer>
-    <b>Data sources:</b><span class="dot live" style="display:inline-block;"></span> <b>Live weather / model snow depth / past &amp; forecast 72h snowfall</b> come from the Open-Meteo weather model API, fetched directly by your browser.
-    <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo lift (and Thredbo trail) status</b> is scraped live from each resort's official status page by a self-hosted Cloudflare Worker (to get around browser CORS restrictions), cached for 5 minutes.
-    <span class="dot manual" style="display:inline-block;"></span> <b>Charlotte Pass / Selwyn / all 5 Victorian resorts</b> don't have a structured status page yet (the Worker currently only supports Perisher/Thredbo) — check lift status via the "official page" link on each card.
-    <b>Webcams:</b> all nine resorts have direct, embeddable static image links from their official sites (each open/refresh re-fetches a fresh snapshot, not a video stream), shown as a click-to-enlarge thumbnail grid; Falls Creek's official site uses a single Panomax 360° camera instead. <b>Live streams:</b> Perisher (2 feeds), Thredbo (5 feeds, YouTube), and Selwyn (1 feed, Twitch) have real live streams on their official sites, shown as click-to-expand-then-click-to-play tiles (to avoid loading too many videos at once); the other resorts' official sites have no live stream, only static snapshots. A link to the official webcam page is kept as a fallback either way.
-    <b>⚠️ Live stream won't load (YouTube Error 153 / Twitch error):</b> this page needs to be served over http(s) to play live streams — double-clicking the html file to open it directly (the file:// protocol) gets rejected by YouTube/Twitch's anti-embedding checks, regardless of domain, because they don't accept an empty origin. For local viewing, spin up a local server (e.g. <code>python3 -m http.server</code>) or just use the deployed URL. Webcam snapshots and weather aren't affected and still work when opened directly.<br>
-    <b>Possible next steps:</b> road/closure alerts, lift ticket price comparison, beginner/intermediate/advanced trail split, kids' lesson info, live lift status for the Victorian resorts (needs matching scrape rules added to the Worker).
-  </footer>
+  <footer id="footer"></footer>
 
 </div>
 
 <script>
 const resorts = [
   {
-    id: "perisher", name: "Perisher",
-    region: "nsw", drive: "~6h",
+    id: "perisher", name: "Perisher", cn: "佩里舍",
+    region: "nsw", drive: "~6h", driveMin: 360,
     lat: -36.40, lon: 148.41,
     sourceUrl: "https://www.perisher.com.au/reports-cams/reports/snow-report",
     camUrl: "https://www.perisher.com.au/reports-cams/cams",
@@ -307,11 +307,12 @@ const resorts = [
       { name: "Blue Cow Live", type: "youtube", id: "yr09mo1sbq0" }
     ],
     liftKey: "perisher", // live lift status via Worker (see /worker/lift-status.js)
-    tags: ["Largest resort", "Great for beginners+families", "Wide terrain"]
+    tags: ["Largest resort", "Great for beginners+families", "Wide terrain"],
+    tagsZh: ["最大雪场", "适合初中级+家庭", "地形广"]
   },
   {
-    id: "thredbo", name: "Thredbo",
-    region: "nsw", drive: "~6h",
+    id: "thredbo", name: "Thredbo", cn: "斯瑞德博",
+    region: "nsw", drive: "~6h", driveMin: 360,
     lat: -36.50, lon: 148.30,
     sourceUrl: "https://www.thredbo.com.au/mountain/snow-report/",
     camUrl: "https://www.thredbo.com.au/weather/snow-cams/",
@@ -335,27 +336,12 @@ const resorts = [
       { name: "Friday Flat", type: "youtube", id: "Xt_KjaeGcGo" }
     ],
     liftKey: "thredbo", // live lift + trail status via Worker
-    tags: ["Longest vertical drop", "Great for intermediate+advanced", "Lively village"]
+    tags: ["Longest vertical drop", "Great for intermediate+advanced", "Lively village"],
+    tagsZh: ["落差最大", "适合中高级", "村落氛围好"]
   },
   {
-    id: "charlottepass", name: "Charlotte Pass",
-    region: "nsw", drive: "~6.5h + oversnow transport",
-    lat: -36.43, lon: 148.33,
-    sourceUrl: "https://charlottepass.com.au/on-mountain/",
-    camUrl: "https://charlottepass.com.au/on-mountain/",
-    trailMapUrl: "https://charlottepass.com.au/wp-content/uploads/2025/04/CPSR-Trail-Map-2025-scaled.jpg",
-    camBase: "https://charlottepass.com.au/charlottepass/webcam/",
-    cams: [
-      { name: "Kosi Carpet & Basin Poma", file: "Chairlift/current.jpg" },
-      { name: "Pulpit T-Bar", file: "timber/current.jpg" },
-      { name: "Mountain Range & Top of the World", file: "guthries/current.jpg" },
-      { name: "Kosciuszko Triple Chair", file: "lucylodge/current.jpg" }
-    ],
-    tags: ["Highest elevation", "Least crowded", "Requires transport/snowmobile"]
-  },
-  {
-    id: "selwyn", name: "Selwyn",
-    region: "nsw", drive: "~6h",
+    id: "selwyn", name: "Selwyn", cn: "塞尔温",
+    region: "nsw", drive: "~6h", driveMin: 360,
     lat: -35.906, lon: 148.4495,
     sourceUrl: "https://selwynsnow.com.au/snow-and-weather/",
     camUrl: "https://selwynsnow.com.au/snow-and-weather/",
@@ -369,11 +355,29 @@ const resorts = [
     liveCams: [
       { name: "Selwyn Live", type: "twitch", channel: "selwynsnow" }
     ],
-    tags: ["Closest to Sydney/Canberra", "Great for beginners+families", "Best value"]
+    tags: ["Closest to Sydney/Canberra", "Great for beginners+families", "Best value"],
+    tagsZh: ["离悉尼/堪培拉最近", "适合初级+家庭", "性价比高"]
   },
   {
-    id: "buller", name: "Mount Buller",
-    region: "vic", drive: "~3.25h",
+    id: "charlottepass", name: "Charlotte Pass", cn: "夏洛特山口",
+    region: "nsw", drive: "~6.5h + oversnow transport", driveMin: 390,
+    lat: -36.43, lon: 148.33,
+    sourceUrl: "https://charlottepass.com.au/on-mountain/",
+    camUrl: "https://charlottepass.com.au/on-mountain/",
+    trailMapUrl: "https://charlottepass.com.au/wp-content/uploads/2025/04/CPSR-Trail-Map-2025-scaled.jpg",
+    camBase: "https://charlottepass.com.au/charlottepass/webcam/",
+    cams: [
+      { name: "Kosi Carpet & Basin Poma", file: "Chairlift/current.jpg" },
+      { name: "Pulpit T-Bar", file: "timber/current.jpg" },
+      { name: "Mountain Range & Top of the World", file: "guthries/current.jpg" },
+      { name: "Kosciuszko Triple Chair", file: "lucylodge/current.jpg" }
+    ],
+    tags: ["Highest elevation", "Least crowded", "Requires transport/snowmobile"],
+    tagsZh: ["最高海拔", "人最少", "需接驳/雪地摩托"]
+  },
+  {
+    id: "buller", name: "Mount Buller", cn: "巴勒山",
+    region: "vic", drive: "~3.25h", driveMin: 195,
     lat: -37.1464, lon: 146.4503,
     sourceUrl: "https://www.mtbuller.com.au/winter/snow-weather/snow-report",
     camUrl: "https://www.mtbuller.com.au/winter/weather/web-cams",
@@ -385,11 +389,12 @@ const resorts = [
       { name: "Village", file: "VillageCam.jpg" },
       { name: "Village Toboggan Park", file: "VillageTobogganCam.jpg" }
     ],
-    tags: ["Victoria's largest resort", "All skill levels", "Full village amenities"]
+    tags: ["Victoria's largest resort", "All skill levels", "Full village amenities"],
+    tagsZh: ["维州最大雪场", "适合各级别", "村落设施齐全"]
   },
   {
-    id: "hotham", name: "Mount Hotham",
-    region: "vic", drive: "~4.5h",
+    id: "hotham", name: "Mount Hotham", cn: "霍瑟姆山",
+    region: "vic", drive: "~4.5h", driveMin: 270,
     lat: -36.9754, lon: 147.1276,
     sourceUrl: "https://www.hotham.com.au/mountain/conditions/snow-reports",
     camUrl: "https://www.hotham.com.au/mountain/conditions/snow-cams",
@@ -408,11 +413,12 @@ const resorts = [
       { name: "Golden Point", file: "GoldenPoint.jpg?format=webp" },
       { name: "Whiskey Flat", file: "WFwest.jpg?format=webp" }
     ],
-    tags: ["Victoria's highest peak", "Great for intermediate+advanced", "Varied, complex terrain"]
+    tags: ["Victoria's highest peak", "Great for intermediate+advanced", "Varied, complex terrain"],
+    tagsZh: ["维州海拔最高", "适合中高级", "地形复杂多变"]
   },
   {
-    id: "fallscreek", name: "Falls Creek",
-    region: "vic", drive: "~4.5h",
+    id: "fallscreek", name: "Falls Creek", cn: "瀑布溪",
+    region: "vic", drive: "~4.5h", driveMin: 270,
     lat: -36.87, lon: 147.27,
     sourceUrl: "https://www.fallscreek.com.au/snowreport/",
     camUrl: "https://skifalls.panomax.com/drovers",
@@ -421,11 +427,12 @@ const resorts = [
     cams: [
       { name: "Drovers panorama", file: "" }
     ],
-    tags: ["Extensive linked trails", "Great for beginners+families", "Renowned for cross-country"]
+    tags: ["Extensive linked trails", "Great for beginners+families", "Renowned for cross-country"],
+    tagsZh: ["雪道相连广", "适合初中级+家庭", "越野滑雪出名"]
   },
   {
-    id: "bawbaw", name: "Mount Baw Baw",
-    region: "vic", drive: "~2.75h",
+    id: "bawbaw", name: "Mount Baw Baw", cn: "巴奥巴奥山",
+    region: "vic", drive: "~2.75h", driveMin: 165,
     lat: -37.8395, lon: 146.2760,
     sourceUrl: "https://www.mountbawbaw.com.au/reports/snow-weather/",
     camUrl: "https://www.mountbawbaw.com.au/reports/webcams/",
@@ -439,11 +446,12 @@ const resorts = [
       { name: "Baw Baw Village", file: "camera5.jpg" },
       { name: "Tank Hill", file: "camera6.jpg" }
     ],
-    tags: ["Closest to Melbourne", "Great for beginners+families", "Smaller scale"]
+    tags: ["Closest to Melbourne", "Great for beginners+families", "Smaller scale"],
+    tagsZh: ["离墨尔本最近", "适合初级+家庭", "规模较小"]
   },
   {
-    id: "dinnerplain", name: "Dinner Plain",
-    region: "vic", drive: "~4.75h",
+    id: "dinnerplain", name: "Dinner Plain", cn: "丁纳平原",
+    region: "vic", drive: "~4.75h", driveMin: 285,
     lat: -37.03, lon: 147.279,
     sourceUrl: "https://www.visitdinnerplain.com.au/snow-report/",
     camUrl: "https://www.visitdinnerplain.com.au/snow-cam/",
@@ -452,9 +460,224 @@ const resorts = [
     cams: [
       { name: "Cobungra Platter / Scrubbers End", file: "cam-dp-1.jpg" }
     ],
-    tags: ["Connected to Hotham", "Mainly cross-country/tobogganing", "Village resort feel"]
+    tags: ["Connected to Hotham", "Mainly cross-country/tobogganing", "Village resort feel"],
+    tagsZh: ["与 Hotham 相连", "越野滑雪/雪橇为主", "度假村氛围"]
+  },
+  {
+    id: "coronetpeak", name: "Coronet Peak", cn: "科罗内特峰",
+    region: "nz", drive: "~20min", driveMin: 20, originCity: "Queenstown",
+    lat: -44.9158, lon: 168.7397,
+    sourceUrl: "https://www.coronetpeak.co.nz/weather-report",
+    camUrl: "https://www.coronetpeak.co.nz/weather-report",
+    trailMapUrl: "https://www.coronetpeak.co.nz/cdn-cgi/image/width=2000,fit=contain,format=auto,quality=85/https://www.coronetpeak.co.nz/_cf/h/cdn.prod.website-files.com/69d83bba1fb7149e2578fd8b/6a2f836e278a501dda44c4b9_coronet-peak-trail-map-2026.jpeg",
+    tags: ["Closest to Queenstown", "Renowned night skiing", "Great for beginners+intermediate"],
+    tagsZh: ["离皇后镇最近", "著名夜滑雪场", "适合初级+中级"]
+  },
+  {
+    id: "remarkables", name: "The Remarkables", cn: "雷马克波尔斯山",
+    region: "nz", drive: "~35min", driveMin: 35, originCity: "Queenstown",
+    lat: -45.0719, lon: 168.8081,
+    sourceUrl: "https://www.theremarkables.co.nz/weather-report",
+    camUrl: "https://www.theremarkables.co.nz/weather-report",
+    trailMapUrl: "https://www.theremarkables.co.nz/cdn-cgi/image/width=2000;fit=contain;format=auto;quality=85/https://www.theremarkables.co.nz/_cf/h/cdn.prod.website-files.com/69f122bc870708d57935b25d/6a5d5db0dfaf827d528dd834_re-terrain-map-2026.jpeg",
+    tags: ["Scenic alpine bowls", "Great for beginners+families", "Terrain parks"],
+    tagsZh: ["风景优美的高山雪盆", "适合初级+家庭", "地形公园"]
+  },
+  {
+    id: "cardrona", name: "Cardrona", cn: "卡德罗纳",
+    region: "nz", drive: "~1h", driveMin: 60, originCity: "Queenstown",
+    lat: -44.8738, lon: 168.9486,
+    sourceUrl: "https://cardrona-treblecone.com/snow-report",
+    camUrl: "https://webcams.cardrona.com/new-webcam-page?group=1",
+    trailMapUrl: "https://images.ctfassets.net/2atbvuhykqrn/3Qt5U84xf6cWPwC4TfoCX8/bdba29ff63d6df2660609a5c5aa64893/W26-Cardrona-NewTrailMap-Artwork.webp",
+    camBase: "https://webcams.cardrona.com/new-webcam-page/image/?view=",
+    cams: [
+      { name: "Main Basin", file: "1" },
+      { name: "Captain's", file: "2" },
+      { name: "Soho", file: "13" }
+    ],
+    tags: ["Largest ski area in the region", "All skill levels", "Top terrain parks"],
+    tagsZh: ["该地区最大滑雪场", "适合各级别", "顶级地形公园"]
+  },
+  {
+    id: "treblecone", name: "Treble Cone", cn: "特雷布尔科恩",
+    region: "nz", drive: "~30min", driveMin: 30, originCity: "Wanaka",
+    lat: -44.63, lon: 168.90,
+    sourceUrl: "https://cardrona-treblecone.com/snow-report",
+    camUrl: "https://webcams.cardrona.com/new-webcam-page?group=2",
+    trailMapUrl: "https://images.ctfassets.net/2atbvuhykqrn/2LNgSy2J6miHpe1VJjvkCW/06017808fde229178892c858bfc251d6/W24-Mountains_Info_830x830-_MainBTC.webp",
+    camBase: "https://webcams.cardrona.com/new-webcam-page/image/?view=",
+    cams: [
+      { name: "Home Basin", file: "4" },
+      { name: "Lake Wanaka View", file: "9" },
+      { name: "Saddle Basin", file: "5" },
+      { name: "Saddle Gate", file: "10" },
+      { name: "Saddle Chair", file: "6" },
+      { name: "Base Building", file: "7" },
+      { name: "Lower Home", file: "3" },
+      { name: "Home Basin Closeup", file: "8" }
+    ],
+    tags: ["Biggest vertical drop in Southern Lakes", "Great for advanced", "Uncrowded, big terrain"],
+    tagsZh: ["南部湖区落差最大", "适合高级滑手", "人少地形广"]
+  },
+  {
+    id: "mthutt", name: "Mt Hutt", cn: "哈特山",
+    region: "nz", drive: "~1.5h", driveMin: 90, originCity: "Christchurch",
+    lat: -43.4714, lon: 171.5261,
+    sourceUrl: "https://www.mthutt.co.nz/weather-report",
+    camUrl: "https://www.mthutt.co.nz/weather-report",
+    trailMapUrl: "https://www.mthutt.co.nz/cdn-cgi/image/width=1154;fit=contain;format=auto;quality=85/https://www.mthutt.co.nz/_cf/h/cdn.prod.website-files.com/695d64b1a2835538730848d1/6a418f33988b4ffd98f55cde_mh-trail-map-2026-image.jpg",
+    tags: ["Widest ski basin in NZ", "Great for all levels", "Closest major field to Christchurch"],
+    tagsZh: ["新西兰最宽阔的雪盆", "适合各级别", "离基督城最近的大型雪场"]
+  },
+  {
+    id: "whakapapa", name: "Whakapapa", cn: "瓦卡帕帕",
+    region: "nz", drive: "~4.5h", driveMin: 270, originCity: "Auckland",
+    lat: -39.2374, lon: 175.5570,
+    sourceUrl: "https://www.whakapapa.com/report",
+    camUrl: "https://www.whakapapa.com/report",
+    trailMapUrl: "https://media.whakapapa.com/2021_Trail_Map_Whakapapa_603731f4e7.pdf",
+    camBase: "https://webcams.whakapapa.com/",
+    cams: [
+      { name: "Far West T-Bar", file: "farwesttbar/latest.jpg" },
+      { name: "Hut Flat", file: "hutflat/latest.jpg" },
+      { name: "Happy Valley", file: "hvfromskywaka/latest.jpg" },
+      { name: "Te Heuheu Valley", file: "teheuheuvalley/latest.jpg" },
+      { name: "The Pinnacles", file: "thepinnacles/latest.jpg" },
+      { name: "Staircase Slopes", file: "waterfall/latest.jpg" }
+    ],
+    tags: ["New Zealand's largest ski area", "Volcanic terrain", "North Island's main ski field"],
+    tagsZh: ["新西兰最大滑雪场", "火山地形", "北岛主要雪场"]
   }
 ];
+
+// ---------------------------------------------------------------------------
+// i18n: default English, toggled to Chinese via the header button, persisted
+// in localStorage. STR holds simple static labels; a handful of composed
+// strings (word order differs between languages) live in small helper
+// functions below instead of trying to force them into flat interpolation.
+// ---------------------------------------------------------------------------
+let lang = localStorage.getItem("skiInfoLang") || "en";
+function T(){ return STR[lang]; }
+
+const CITY_ZH = { Sydney: "悉尼", Melbourne: "墨尔本", Queenstown: "皇后镇", Wanaka: "瓦纳卡", Christchurch: "基督城", Auckland: "奥克兰" };
+function driveTagText(r){
+  if(r.originCity){
+    return lang === "zh" ? `距${CITY_ZH[r.originCity]} ${r.drive}` : `${r.drive} from ${r.originCity}`;
+  }
+  return r.drive;
+}
+function camsHeadingText(r){
+  if(!r.cams) return T().webcamsLabel;
+  const n = r.cams.length;
+  return lang === "zh" ? `${T().webcamsLabel} · ${n} 个机位` : `${T().webcamsLabel} · ${n} cam${n===1?"":"s"}`;
+}
+function liveHeadingText(r){
+  const n = r.liveCams.length;
+  return lang === "zh" ? `${T().liveLabel} · ${n} 路` : `${T().liveLabel} · ${n} feed${n===1?"":"s"}`;
+}
+function liftStatusLiveHeadingText(r){
+  return lang === "zh" ? `缆车状态 · ${r.name} 官网实时` : `Lift status · Live from ${r.name}`;
+}
+function webcamPageLinkText(r){
+  return lang === "zh" ? `📷 打开 ${r.name} 官方实时摄像头页面 →` : `📷 Open the official ${r.name} webcam page →`;
+}
+function trailsOpenText(counts){
+  return lang === "zh" ? `${counts.trails.open} / ${counts.trails.total} 条` : `${counts.trails.open} / ${counts.trails.total}`;
+}
+
+const STR = {
+  en: {
+    docTitle: "Resort Overview · AU & NZ Ski Resorts",
+    eyebrow: "NSW · Snowy Mountains / VIC · Victorian Alps / NZ · New Zealand",
+    h1a: "Resort Overview", h1b: "/ AU &amp; NZ Ski Resorts",
+    refresh: "↻ Refresh weather",
+    sortDefault: "Default", sortLifts: "By lifts open", sortSnow: "By snow depth", sortDrive: "By drive time",
+    langToggle: "中文",
+    liftsOpen: "Lifts open",
+    details: "Details",
+    trailsOpen: "Trails open",
+    loadingLifts: "Loading lift status…",
+    liveLiftStatus: "Live lift status",
+    seeOfficial: "See official page →",
+    liftStatus: "Lift status",
+    liveWeather: "Live Weather · Open-Meteo",
+    currentWeather: "Current weather",
+    wind: "Wind",
+    modelSnowDepth: "Model snow depth",
+    noData: "No data",
+    snowfallPast: "Snowfall (past 72h)",
+    snowfallForecast: "Forecast snowfall (next 72h)",
+    weatherFetchFailed: "Weather fetch failed",
+    retry: "Retry",
+    loadingWeather: "Loading weather…",
+    forecast7: "7-Day Forecast",
+    today: "Today",
+    weekday: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+    liveLabel: "Live",
+    expand: "Expand ▾", collapse: "Collapse ▴", expandTitle: "Expand",
+    webcamsLabel: "Webcams",
+    officialSnowReport: "→ Official snow report",
+    trailMap: "🗺️ Trail map →",
+    weatherUpdated: "Weather updated",
+    wmo: {0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Rime fog",51:"Light drizzle",53:"Drizzle",55:"Dense drizzle",56:"Freezing drizzle",57:"Dense freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Heavy freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",80:"Rain showers",81:"Heavy rain showers",82:"Violent rain showers",85:"Snow showers",86:"Heavy snow showers",95:"Thunderstorm",96:"Thunderstorm w/ hail",99:"Severe thunderstorm w/ hail",unknown:"Unknown"},
+    regionLabels: { nsw: "New South Wales · Snowy Mountains", vic: "Victoria · Victorian Alps", nz: "New Zealand" },
+    regionOrigins: { nsw: "🚗 From Sydney", vic: "🚗 From Melbourne", nz: "" },
+    footerHtml: `
+      <b>Data sources:</b><span class="dot live" style="display:inline-block;"></span> <b>Live weather / model snow depth / past &amp; forecast 72h snowfall</b> come from the Open-Meteo weather model API, fetched directly by your browser.
+      <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo lift (and Thredbo trail) status</b> is scraped live from each resort's official status page by a self-hosted Cloudflare Worker (to get around browser CORS restrictions), cached for 5 minutes.
+      <span class="dot manual" style="display:inline-block;"></span> <b>Every other resort (Charlotte Pass / Selwyn, all 5 Victorian resorts, all 6 New Zealand resorts)</b> doesn't have a structured status page yet (the Worker currently only supports Perisher/Thredbo) — check lift status via the "official page" link on each card.
+      <b>Webcams:</b> most resorts have direct, embeddable static image links from their official sites (each open/refresh re-fetches a fresh snapshot, not a video stream), shown as a click-to-enlarge thumbnail grid; Falls Creek's official site uses a single Panomax 360° camera instead; Coronet Peak, The Remarkables, and Mt Hutt (all run by NZSki) generate a new, timestamped image filename via client-side JS that couldn't be reliably reproduced here, so those three link out to the official page instead. <b>Live streams:</b> Perisher (2 feeds), Thredbo (5 feeds, YouTube), and Selwyn (1 feed, Twitch) have real live streams on their official sites, shown as click-to-expand-then-click-to-play tiles (to avoid loading too many videos at once); the other resorts' official sites have no live stream, only static snapshots. A link to the official webcam page is kept as a fallback either way.
+      <b>⚠️ Live stream won't load (YouTube Error 153 / Twitch error):</b> this page needs to be served over http(s) to play live streams — double-clicking the html file to open it directly (the file:// protocol) gets rejected by YouTube/Twitch's anti-embedding checks, regardless of domain, because they don't accept an empty origin. For local viewing, spin up a local server (e.g. <code>python3 -m http.server</code>) or just use the deployed URL. Webcam snapshots and weather aren't affected and still work when opened directly.<br>
+      <b>Possible next steps:</b> road/closure alerts, lift ticket price comparison, beginner/intermediate/advanced trail split, kids' lesson info, live lift status for the Victorian and New Zealand resorts (needs matching scrape rules added to the Worker).
+    `
+  },
+  zh: {
+    docTitle: "雪场概览 · 澳新滑雪场",
+    eyebrow: "新南威尔士·雪山 / 维多利亚州·维州高山 / 新西兰",
+    h1a: "雪场概览", h1b: "/ 澳新滑雪场",
+    refresh: "↻ 刷新实时天气",
+    sortDefault: "默认", sortLifts: "按开放缆车比例", sortSnow: "按积雪深度", sortDrive: "按车程",
+    langToggle: "English",
+    liftsOpen: "缆车开放",
+    details: "查看详情",
+    trailsOpen: "雪道开放",
+    loadingLifts: "加载缆车状态…",
+    liveLiftStatus: "缆车实时状态",
+    seeOfficial: "见官方页面 →",
+    liftStatus: "缆车状态",
+    liveWeather: "实时天气 · Open-Meteo 自动",
+    currentWeather: "当前天气",
+    wind: "风速",
+    modelSnowDepth: "模型积雪深度",
+    noData: "无数据",
+    snowfallPast: "过去72h降雪",
+    snowfallForecast: "未来72h预报降雪",
+    weatherFetchFailed: "自动天气拉取失败",
+    retry: "重试",
+    loadingWeather: "天气加载中…",
+    forecast7: "未来 7 天预报",
+    today: "今天",
+    weekday: ["周日","周一","周二","周三","周四","周五","周六"],
+    liveLabel: "直播",
+    expand: "展开 ▾", collapse: "收起 ▴", expandTitle: "放大播放",
+    webcamsLabel: "摄像头",
+    officialSnowReport: "→ 查看官方雪况页面",
+    trailMap: "🗺️ 雪道地图 →",
+    weatherUpdated: "天气更新于",
+    wmo: {0:"晴朗",1:"大致晴",2:"局部多云",3:"阴天",45:"雾",48:"雾凇",51:"小毛雨",53:"毛雨",55:"强毛雨",56:"冻毛雨",57:"强冻毛雨",61:"小雨",63:"中雨",65:"大雨",66:"冻雨",67:"强冻雨",71:"小雪",73:"中雪",75:"大雪",77:"米雪",80:"阵雨",81:"强阵雨",82:"暴阵雨",85:"阵雪",86:"强阵雪",95:"雷暴",96:"雷暴伴冰雹",99:"强雷暴伴冰雹",unknown:"未知"},
+    regionLabels: { nsw: "新南威尔士 · Snowy Mountains", vic: "维多利亚州 · Victorian Alps", nz: "新西兰" },
+    regionOrigins: { nsw: "🚗 悉尼出发", vic: "🚗 墨尔本出发", nz: "" },
+    footerHtml: `
+      <b>数据来源说明：</b><span class="dot live" style="display:inline-block;"></span> <b>实时天气 / 模型积雪深度 / 过去及未来 72h 降雪</b> 来自 Open-Meteo 天气模型 API,由浏览器直接拉取。
+      <span class="dot live" style="display:inline-block;"></span> <b>Perisher / Thredbo 的缆车(及 Thredbo 雪道)开放状态</b> 由一个自建的 Cloudflare Worker 实时抓取各雪场官方状态页(绕过浏览器 CORS 限制),每 5 分钟缓存一次。
+      <span class="dot manual" style="display:inline-block;"></span> <b>其余所有雪场(Charlotte Pass / Selwyn、5 个维州雪场、6 个新西兰雪场)</b> 暂无结构化状态页(自建 Worker 目前只支持 Perisher/Thredbo),缆车状态请点卡片里的"见官方页面"链接查看。
+      <b>摄像头</b>：大部分雪场官网都有可直接内嵌的静态图直链(每次打开/刷新会重新拉取一次快照,不是视频流),做成了缩略图网格点击放大;Falls Creek 官网用的是 Panomax 360° 全景摄像头,只有一路;Coronet Peak、The Remarkables、Mt Hutt(都是 NZSki 旗下)的摄像头图片文件名带时间戳、由前端 JS 动态生成,没能稳定复现,这三个改成跳转官方页面。<b>直播</b>：Perisher(2路)、Thredbo(5路,YouTube)、Selwyn(1路,Twitch)官网自己也挂了真正的直播流,做成了点击展开、再点单个才播放的卡片(避免一次性加载太多视频);其余雪场官网没有直播,只有静态快照。同时保留跳转到官方摄像头页面的按钮作为兜底。
+      <b>⚠️ 直播打不开(YouTube Error 153 / Twitch 报错)：</b>这个页面必须用 http(s) 方式访问才能播直播 —— 双击 html 文件直接打开(file:// 协议)会被 YouTube/Twitch 的防盗链机制拒绝,和域名无关,是它们不认"空来源"。本地看用 <code>python3 -m http.server</code> 之类起个本地服务器,或者直接用部署后的网址。摄像头快照图和天气不受影响,双击打开也能看。<br>
+      <b>下一步可加：</b>路况/封路提醒、票价对比、初中高级道占比、儿童课程信息、维州和新西兰雪场的实时缆车状态(需要给 Worker 加对应的抓取规则)。
+    `
+  }
+};
 
 // Base URL of your deployed Cloudflare Worker (see /worker/lift-status.js).
 // Leave as the placeholder to disable live lifts (resorts then show a link to
@@ -470,28 +693,30 @@ let camTs = Date.now();
 // live lift status cache (via Cloudflare Worker proxy), filled at runtime
 const liveLiftCache = {};
 
+const wmoIcon = {
+  0:"☀️",1:"🌤️",2:"⛅",3:"☁️",
+  45:"🌫️",48:"🌫️",
+  51:"🌦️",53:"🌦️",55:"🌧️",
+  56:"🌧️",57:"🌧️",
+  61:"🌧️",63:"🌧️",65:"🌧️",
+  66:"🌨️",67:"🌨️",
+  71:"❄️",73:"❄️",75:"❄️",77:"❄️",
+  80:"🌦️",81:"🌦️",82:"⛈️",
+  85:"🌨️",86:"🌨️",
+  95:"⛈️",96:"⛈️",99:"⛈️"
+};
 function wmoDesc(code){
-  const map = {
-    0:["☀️","Clear"],1:["🌤️","Mostly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
-    45:["🌫️","Fog"],48:["🌫️","Rime fog"],
-    51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Dense drizzle"],
-    56:["🌧️","Freezing drizzle"],57:["🌧️","Dense freezing drizzle"],
-    61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],
-    66:["🌨️","Freezing rain"],67:["🌨️","Heavy freezing rain"],
-    71:["❄️","Light snow"],73:["❄️","Snow"],75:["❄️","Heavy snow"],77:["❄️","Snow grains"],
-    80:["🌦️","Rain showers"],81:["🌦️","Heavy rain showers"],82:["⛈️","Violent rain showers"],
-    85:["🌨️","Snow showers"],86:["🌨️","Heavy snow showers"],
-    95:["⛈️","Thunderstorm"],96:["⛈️","Thunderstorm w/ hail"],99:["⛈️","Severe thunderstorm w/ hail"]
-  };
-  return map[code] || ["·","Unknown"];
+  return [wmoIcon[code] || "·", T().wmo[code] || T().wmo.unknown];
 }
 
+// Each AU state shares one timezone; NZ resorts use their own.
+const TZ = { nsw: "Australia/Sydney", vic: "Australia/Sydney", nz: "Pacific/Auckland" };
 async function fetchLive(r){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${r.lat}&longitude=${r.lon}`
     + `&current=temperature_2m,wind_speed_10m,weather_code`
     + `&hourly=snow_depth`
     + `&daily=snowfall_sum,weather_code,temperature_2m_max,temperature_2m_min`
-    + `&timezone=Australia%2FSydney&past_days=3&forecast_days=7`;
+    + `&timezone=${encodeURIComponent(TZ[r.region])}&past_days=3&forecast_days=7`;
   const res = await fetch(url);
   if(!res.ok) throw new Error("HTTP " + res.status);
   const data = await res.json();
@@ -586,33 +811,32 @@ function liveBlockHTML(r){
   const live = liveCache[r.id];
   if(live === "error"){
     return `
-      <div class="stat"><span class="k err">Weather fetch failed</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">Retry</button></span></div>
+      <div class="stat"><span class="k err">${T().weatherFetchFailed}</span><span class="v"><button class="edit-link" onclick="retryOne('${r.id}')">${T().retry}</button></span></div>
     `;
   }
   if(!live){
-    return `<div class="stat"><span class="k skeleton">Loading weather…</span><span class="v">···</span></div>`;
+    return `<div class="stat"><span class="k skeleton">${T().loadingWeather}</span><span class="v">···</span></div>`;
   }
   const [icon, desc] = wmoDesc(live.code);
   return `
-    <div class="stat"><span class="k">Current weather</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
-    <div class="stat"><span class="k">Wind</span><span class="v">${live.wind} km/h</span></div>
-    <div class="stat"><span class="k">Model snow depth</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : "No data"}</span></div>
-    <div class="stat"><span class="k">Snowfall (past 72h)</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : "No data"}</span></div>
-    <div class="stat"><span class="k">Forecast snowfall (next 72h)</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : "No data"}</span></div>
+    <div class="stat"><span class="k">${T().currentWeather}</span><span class="v">${icon} ${desc} · ${live.temp}°C</span></div>
+    <div class="stat"><span class="k">${T().wind}</span><span class="v">${live.wind} km/h</span></div>
+    <div class="stat"><span class="k">${T().modelSnowDepth}</span><span class="v snow">${live.snowDepth != null ? live.snowDepth.toFixed(0) + live.snowDepthUnit : T().noData}</span></div>
+    <div class="stat"><span class="k">${T().snowfallPast}</span><span class="v snow">${live.recentSnow != null ? live.recentSnow.toFixed(1) + live.snowfallUnit : T().noData}</span></div>
+    <div class="stat"><span class="k">${T().snowfallForecast}</span><span class="v next">${live.next72 != null ? live.next72.toFixed(1) + live.snowfallUnit : T().noData}</span></div>
   `;
 }
 
-const weekdayEN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 function forecastRowHTML(r){
   const live = liveCache[r.id];
   if(live === "error" || !live) return "";
   if(!live.forecast7 || !live.forecast7.length) return "";
   return `
-    <div class="section-lbl"><span><span class="dot live"></span>7-Day Forecast</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>${T().forecast7}</span></div>
     <div class="forecast-row">
       ${live.forecast7.map((d, i) => {
         const [icon] = wmoDesc(d.code);
-        const dow = i === 0 ? "Today" : weekdayEN[new Date(d.date).getDay()];
+        const dow = i === 0 ? T().today : T().weekday[new Date(d.date).getDay()];
         return `
         <div class="forecast-day">
           <div class="fd-dow">${dow}</div>
@@ -652,28 +876,35 @@ function liftSectionHTML(r){
       ${gaugeSVG(liftPct, gaugeColor)}
       <div class="gauge-desc">
         <div class="num">${counts.open} / ${counts.total}</div>
-        <div class="lbl">Lifts open</div>
+        <div class="lbl">${T().liftsOpen}</div>
       </div>
     </div>
 
     <div class="section-lbl">
-      <span><span class="dot live"></span>Lift status · Live from ${r.name}</span>
-      <button class="edit-link" onclick="toggleLiftDetail('${r.id}')">Details</button>
+      <span><span class="dot live"></span>${liftStatusLiveHeadingText(r)}</span>
+      <button class="edit-link" onclick="toggleLiftDetail('${r.id}')">${T().details}</button>
     </div>
-    ${counts.trails ? `<div class="stats"><div class="stat"><span class="k">Trails open</span><span class="v">${counts.trails.open} / ${counts.trails.total}</span></div></div>` : ""}
+    ${counts.trails ? `<div class="stats"><div class="stat"><span class="k">${T().trailsOpen}</span><span class="v">${trailsOpenText(counts)}</span></div></div>` : ""}
     ${liftAreasHTML(r)}`;
   }
   // Show "loading" only while a proxy fetch is genuinely in flight; otherwise
   // (no liftKey, proxy disabled, or fetch failed) link out to the official page.
   const loading = liftProxyEnabled && r.liftKey && liveLiftCache[r.id] === undefined;
   const msg = loading
-    ? `<span class="k skeleton">Loading lift status…</span>`
-    : `<span class="k">Live lift status</span><span class="v"><a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener" style="margin:0;border:none;">See official page →</a></span>`;
+    ? `<span class="k skeleton">${T().loadingLifts}</span>`
+    : `<span class="k">${T().liveLiftStatus}</span><span class="v"><a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener" style="margin:0;border:none;">${T().seeOfficial}</a></span>`;
   return `
-    <div class="section-lbl"><span><span class="dot manual"></span>Lift status</span></div>
+    <div class="section-lbl"><span><span class="dot manual"></span>${T().liftStatus}</span></div>
     <div class="stats"><div class="stat">${msg}</div></div>`;
 }
 
+// camBase+file sometimes already has its own "?query=" (e.g. Cardrona's
+// ?view=1, Hotham's ?format=webp) — pick "&" instead of "?" so we don't
+// clobber it with a second "?".
+function camUrl(r, c, ts){
+  const base = `${r.camBase}${c.file}`;
+  return `${base}${base.includes("?") ? "&" : "?"}ts=${ts}`;
+}
 function camGridHTML(r){
   if(!r.cams || !r.cams.length) return "";
   const ts = camTs;
@@ -681,7 +912,7 @@ function camGridHTML(r){
     <div class="cam-grid">
       ${r.cams.map((c, i) => `
         <div class="cam-thumb" onclick="openLightbox('${r.id}', ${i})">
-          <img src="${r.camBase}${c.file}?ts=${ts}" alt="${c.name}" loading="lazy">
+          <img src="${camUrl(r, c, ts)}" alt="${c.name}" loading="lazy">
           <div class="cam-lbl">${c.name}</div>
         </div>
       `).join("")}
@@ -693,7 +924,7 @@ function openLightbox(resortId, i){
   const c = r.cams[i];
   const img = document.getElementById("lightboxImg");
   img.style.display = "block";
-  img.src = `${r.camBase}${c.file}?ts=${Date.now()}`;
+  img.src = camUrl(r, c, Date.now());
   document.getElementById("lightboxFrame").style.display = "none";
   document.getElementById("lightboxFrame").src = "";
   document.getElementById("lightboxCap").textContent = `${r.name} · ${c.name}`;
@@ -728,8 +959,8 @@ function liveGridHTML(r){
   if(!r.liveCams || !r.liveCams.length) return "";
   return `
     <div class="section-lbl">
-      <span><span class="dot live"></span>Live · ${r.liveCams.length} feed${r.liveCams.length === 1 ? "" : "s"}</span>
-      <button class="edit-link" onclick="toggleLiveGrid('${r.id}')" id="live-toggle-${r.id}">Expand ▾</button>
+      <span><span class="dot live"></span>${liveHeadingText(r)}</span>
+      <button class="edit-link" onclick="toggleLiveGrid('${r.id}')" id="live-toggle-${r.id}">${T().expand}</button>
     </div>
     <div class="live-grid" id="live-grid-${r.id}">
       ${r.liveCams.map((c, i) => `
@@ -746,7 +977,7 @@ function toggleLiveGrid(id){
   const grid = document.getElementById(`live-grid-${id}`);
   const btn = document.getElementById(`live-toggle-${id}`);
   const open = grid.classList.toggle("open");
-  btn.textContent = open ? "Collapse ▴" : "Expand ▾";
+  btn.textContent = open ? T().collapse : T().expand;
 }
 function playLiveCam(resortId, i){
   const r = resorts.find(x => x.id === resortId);
@@ -756,19 +987,21 @@ function playLiveCam(resortId, i){
   const el = document.getElementById(`live-tile-${resortId}-${i}`);
   el.innerHTML = `
     <iframe src="${url}" allow="autoplay; fullscreen" allowfullscreen title="${c.name}"></iframe>
-    <button class="live-expand" onclick="openLightboxVideo('${url}', '${caption}')" title="Expand">⛶</button>
+    <button class="live-expand" onclick="openLightboxVideo('${url}', '${caption}')" title="${T().expandTitle}">⛶</button>
   `;
 }
 
 function cardHTML(r){
+  const nameLine = lang === "zh" && r.cn ? `<span>${r.cn}</span> · ` : "";
+  const tags = lang === "zh" && r.tagsZh ? r.tagsZh : r.tags;
   return `
   <div class="card" data-id="${r.id}">
     <div class="resort-name">${r.name}</div>
-    <div class="resort-meta"><span class="drive-tag">🚗 ${r.drive}</span></div>
+    <div class="resort-meta">${nameLine}<span class="drive-tag">🚗 ${driveTagText(r)}</span></div>
 
     ${liftSectionHTML(r)}
 
-    <div class="section-lbl"><span><span class="dot live"></span>Live Weather · Open-Meteo</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>${T().liveWeather}</span></div>
     <div class="stats" id="live-${r.id}">
       ${liveBlockHTML(r)}
     </div>
@@ -778,24 +1011,21 @@ function cardHTML(r){
 
     ${liveGridHTML(r)}
 
-    <div class="section-lbl"><span><span class="dot live"></span>Webcams${r.cams ? ` · ${r.cams.length} cam${r.cams.length === 1 ? "" : "s"}` : ""}</span></div>
+    <div class="section-lbl"><span><span class="dot live"></span>${camsHeadingText(r)}</span></div>
     ${camGridHTML(r)}
-    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">📷 Open ${r.name}'s official webcam page →</a>
+    <a class="src-link" href="${r.camUrl}" target="_blank" rel="noopener" style="display:block; margin-top:${r.cams ? "10px" : "0"}; margin-bottom:4px;">${webcamPageLinkText(r)}</a>
 
-    <div class="tag-row">${r.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+    <div class="tag-row">${tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
     <div>
-      <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">→ Official snow report</a>
-      ${r.trailMapUrl ? `<a class="src-link" href="${r.trailMapUrl}" target="_blank" rel="noopener" style="margin-left:14px;">🗺️ Trail map →</a>` : ""}
+      <a class="src-link" href="${r.sourceUrl}" target="_blank" rel="noopener">${T().officialSnowReport}</a>
+      ${r.trailMapUrl ? `<a class="src-link" href="${r.trailMapUrl}" target="_blank" rel="noopener" style="margin-left:14px;">${T().trailMap}</a>` : ""}
     </div>
   </div>`;
 }
 
 let currentSort = "default";
 
-const regions = [
-  { key: "nsw", label: "New South Wales · Snowy Mountains", origin: "🚗 From Sydney" },
-  { key: "vic", label: "Victoria · Victorian Alps", origin: "🚗 From Melbourne" }
-];
+const REGION_KEYS = ["nsw", "vic", "nz"];
 
 function sortList(list){
   if(currentSort === "lifts") list.sort((a,b) => {
@@ -810,21 +1040,18 @@ function sortList(list){
     const db = (lb && lb !== "error" && lb.snowDepth) || 0;
     return db - da;
   });
-  if(currentSort === "drive") list.sort((a,b) => {
-    const ta = parseFloat(a.drive.match(/[\d.]+/)[0]);
-    const tb = parseFloat(b.drive.match(/[\d.]+/)[0]);
-    return ta - tb;
-  });
+  if(currentSort === "drive") list.sort((a,b) => a.driveMin - b.driveMin);
   return list;
 }
 
 function render(){
-  document.getElementById("regionsWrap").innerHTML = regions.map(rg => {
-    const list = sortList(resorts.filter(r => r.region === rg.key));
+  document.getElementById("regionsWrap").innerHTML = REGION_KEYS.map(key => {
+    const list = sortList(resorts.filter(r => r.region === key));
     if(!list.length) return "";
+    const label = T().regionLabels[key], origin = T().regionOrigins[key];
     return `
       <div class="region-block">
-        <div class="region-hd"><span class="region-label">${rg.label}</span><span class="region-origin">${rg.origin}</span></div>
+        <div class="region-hd"><span class="region-label">${label}</span><span class="region-origin">${origin}</span></div>
         <div class="grid">${list.map(cardHTML).join("")}</div>
       </div>`;
   }).join("");
@@ -860,8 +1087,9 @@ async function retryLifts(id){
   render();
 }
 
+let lastWeatherUpdate = null;
 async function loadAllLive(){
-  document.getElementById("fetchTime").textContent = "Loading weather…";
+  document.getElementById("fetchTime").textContent = T().loadingWeather;
   camTs = Date.now();
   await Promise.all(resorts.map(async (r) => {
     try{
@@ -883,8 +1111,36 @@ async function loadAllLive(){
     }
   }));
   render();
-  const now = new Date();
-  document.getElementById("fetchTime").textContent = "Weather updated " + now.toLocaleTimeString("en-AU", {hour:'2-digit', minute:'2-digit'});
+  lastWeatherUpdate = new Date();
+  document.getElementById("fetchTime").textContent = T().weatherUpdated + " " + lastWeatherUpdate.toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-AU", {hour:'2-digit', minute:'2-digit'});
+}
+
+// Applies the current `lang` to every static UI string, then re-renders the
+// resort cards (which pulls fresh T() text into liveBlockHTML/forecastRowHTML
+// etc. via cardHTML). Any expanded live-video tile collapses back on toggle —
+// an acceptable trade-off for keeping this simple.
+function applyLang(){
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.title = T().docTitle;
+  document.getElementById("eyebrow").textContent = T().eyebrow;
+  document.getElementById("h1title").innerHTML = `${T().h1a} <span>${T().h1b}</span>`;
+  document.getElementById("langToggle").textContent = T().langToggle;
+  document.getElementById("refreshAll").textContent = T().refresh;
+  document.getElementById("footer").innerHTML = T().footerHtml;
+  const sortBtns = document.querySelectorAll(".controls button");
+  sortBtns[0].textContent = T().sortDefault;
+  sortBtns[1].textContent = T().sortLifts;
+  sortBtns[2].textContent = T().sortSnow;
+  sortBtns[3].textContent = T().sortDrive;
+  render();
+  document.getElementById("fetchTime").textContent = lastWeatherUpdate
+    ? T().weatherUpdated + " " + lastWeatherUpdate.toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-AU", {hour:'2-digit', minute:'2-digit'})
+    : T().loadingWeather;
+}
+function setLang(l){
+  lang = l;
+  localStorage.setItem("skiInfoLang", l);
+  applyLang();
 }
 
 document.getElementById("controls").addEventListener("click", (e) => {
@@ -895,8 +1151,9 @@ document.getElementById("controls").addEventListener("click", (e) => {
   render();
 });
 document.getElementById("refreshAll").addEventListener("click", loadAllLive);
+document.getElementById("langToggle").addEventListener("click", () => setLang(lang === "en" ? "zh" : "en"));
 
-render();
+applyLang();
 loadAllLive();
 </script>
 </body>
